@@ -9,6 +9,7 @@
 <body>
 
 <div class="topbar">
+  <button class="icon-btn sidebar-toggle" id="sidebarToggle" data-tooltip="收起/展开侧边栏" onclick="toggleSidebar()">☰</button>
   <span class="logo">AI测试-自动化进阶项目</span>
   <nav class="topnav">
     <a href="#" onclick="loadModule('python-intro');return false;">Python基础</a>
@@ -16,15 +17,18 @@
     <a href="#" onclick="loadModule('ui-overview');return false;">UI测试</a>
     <a href="#" onclick="loadModule('ci-github');return false;">CI/CD</a>
   </nav>
-  <span class="breadcrumb" id="breadcrumb">首页</span>
-  <button class="icon-btn" id="searchToggle" title="搜索模块" onclick="document.getElementById('searchInput')?.focus()">🔍</button>
-  <button class="icon-btn" id="themeToggle" title="切换主题" onclick="toggleTheme()">🌙</button>
+  <nav class="breadcrumb" id="breadcrumb">
+    <a href="#" onclick="loadModule('roadmap');return false;">首页</a>
+  </nav>
+  <button class="icon-btn" id="searchToggle" data-tooltip="搜索 (Ctrl+K)" onclick="document.getElementById('searchInput')?.focus()">🔍</button>
+  <button class="icon-btn" id="themeToggle" data-tooltip="切换主题" onclick="toggleTheme()">🌙</button>
   <button class="icon-btn" id="bookmarkBtn" data-tooltip="收藏此文章" onclick="toggleBookmark()">☆</button>
-  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  <a class="icon-btn" data-tooltip="GitHub 仓库" href="https://github.com/MarinAark/test-automation-learning-platform" target="_blank" style="text-decoration:none;">⚙</a>
+  <div class="progress-bar" id="progressBarWrap"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
   <span class="progress-text" id="progressText">0%</span>
 </div>
 
-<div class="layout">
+<div class="layout" id="layout">
   <aside class="sidebar" id="sidebar">
     <div class="loading"><div class="spinner"></div></div>
   </aside>
@@ -36,10 +40,24 @@
       </div>
       <nav class="toc-sidebar" id="tocSidebar" style="display:none;"></nav>
     </div>
+    <!-- Prev/Next floating nav -->
+    <div class="prev-next-nav" id="prevNextNav" style="display:none;">
+      <button class="pn-btn prev" id="pnPrev" onclick="navigatePrev()" data-tooltip="上一篇">◀ 上一篇</button>
+      <span class="pn-spacer"></span>
+      <button class="pn-btn next" id="pnNext" onclick="navigateNext()" data-tooltip="下一篇">下一篇 ▶</button>
+    </div>
   </main>
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Fullscreen code modal -->
+<div class="fs-code-mask" id="fsCodeMask" onclick="closeFullscreenCode()">
+  <div class="fs-code-wrap" onclick="event.stopPropagation()">
+    <div class="fs-code-bar"><span class="fs-fname" id="fsFname"></span><button class="fs-close" onclick="closeFullscreenCode()">✕</button></div>
+    <pre><code id="fsCodeContent"></code></pre>
+  </div>
+</div>
 
 <script src="/js/app.js"></script>
 </body>

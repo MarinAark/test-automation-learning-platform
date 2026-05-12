@@ -22,9 +22,19 @@ async function init() {
   updateBookmarkIcon();
   await Promise.all([loadChapters(), loadProgress()]);
   renderSidebar();
+  if (localStorage.getItem("sidebar_collapsed") === "true") {
+    document.getElementById("sidebar")?.classList.add("collapsed");
+  }
   if (chapters.length > 0 && chapters[0].modules.length > 0) {
     loadModule(chapters[0].modules[0].id);
   }
+}
+
+// ==================== Sidebar Toggle ====================
+function toggleSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  sidebar.classList.toggle("collapsed");
+  localStorage.setItem("sidebar_collapsed", sidebar.classList.contains("collapsed"));
 }
 
 // ==================== Theme ====================
@@ -111,11 +121,30 @@ async function toggleComplete() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ module_id: currentModuleId, completed }),
     });
-    if (completed) completedSet.add(currentModuleId);
-    else completedSet.delete(currentModuleId);
+    if (completed) {
+      completedSet.add(currentModuleId);
+      // Progress bar flow animation
+      const pb = document.getElementById("progressBarWrap");
+      if (pb) {
+        pb.classList.add("flowing");
+        setTimeout(() => pb.classList.remove("flowing"), 800);
+      }
+    } else {
+      completedSet.delete(currentModuleId);
+    }
     updateCompleteButton();
     updateSidebarDone();
     updateProgressBar(completedSet.size / totalModules * 100);
+
+    // Complete button pop animation
+    if (completed) {
+      const btn = document.getElementById("completeBtn");
+      if (btn) {
+        btn.classList.add("just-completed");
+        setTimeout(() => btn.classList.remove("just-completed"), 400);
+      }
+    }
+
     showToast(completed ? "✅ 已标记完成" : "↩ 已取消标记");
   } catch (e) {
     console.error("更新进度失败:", e);
@@ -129,6 +158,7 @@ function renderSidebar() {
     <div class="srch">
       <input type="text" id="searchInput" placeholder="🔍 搜索知识点..."
              oninput="handleSearch(this.value)" onfocus="handleSearch(this.value)" autocomplete="off">
+      <span class="kbd-hint">Ctrl+K</span>
       <div class="search-dropdown" id="searchDropdown"></div>
     </div>
     ${chapters.map(ch => `
@@ -207,6 +237,17 @@ document.addEventListener("click", (e) => {
   }
 });
 
+// ==================== Flat Module List ====================
+function buildFlatModuleList() {
+  const flat = [];
+  for (const ch of chapters) {
+    for (const m of ch.modules) {
+      flat.push(m);
+    }
+  }
+  return flat;
+}
+
 // ==================== Content Loading ====================
 async function loadModule(moduleId) {
   currentModuleId = moduleId;
@@ -221,7 +262,6 @@ async function loadModule(moduleId) {
   const link = document.querySelector(`[data-module="${moduleId}"]`);
   if (link) {
     link.classList.add("active");
-    // Ensure visible in viewport
     link.scrollIntoView?.({ block: "nearest" });
   }
 
@@ -281,7 +321,9 @@ async function loadModule(moduleId) {
     main.innerHTML = html;
     addCopyButtons();
     addCodeFolding();
+    injectLineNumbers();
     buildTOC();
+    updatePrevNext();
   } catch (e) {
     main.innerHTML = `<div class="loading"><p>加载失败: ${e.message}</p></div>`;
   }
@@ -309,8 +351,15 @@ function updateBreadcrumb(moduleId) {
   const ch = findChapterByModuleId(moduleId);
   const m = findModuleById(moduleId);
   const bc = document.getElementById("breadcrumb");
-  if (ch && m) bc.textContent = `${ch.title} / ${m.title}`;
-  else if (m) bc.textContent = m.title;
+  if (!ch || !m) {
+    bc.innerHTML = `<a href="#" onclick="loadModule('roadmap');return false;">首页</a>`;
+    return;
+  }
+  bc.innerHTML = `<a href="#" onclick="loadModule('roadmap');return false;">首页</a>`
+    + `<span class="bc-sep">/</span>`
+    + `<a href="#" onclick="loadModule('${ch.modules[0].id}');return false;">${ch.title}</a>`
+    + `<span class="bc-sep">/</span>`
+    + `<span>${m.title}</span>`;
 }
 
 function updateCompleteButton() {
@@ -328,6 +377,31 @@ function updateCompleteButton() {
 function updateProgressBar(pct) {
   document.getElementById("progressFill").style.width = pct + "%";
   document.getElementById("progressText").textContent = Math.round(pct) + "%";
+}
+
+// ==================== Prev / Next Navigation ====================
+function navigatePrev() {
+  const flat = buildFlatModuleList();
+  const idx = flat.findIndex(m => m.id === currentModuleId);
+  if (idx > 0) loadModule(flat[idx - 1].id);
+}
+
+function navigateNext() {
+  const flat = buildFlatModuleList();
+  const idx = flat.findIndex(m => m.id === currentModuleId);
+  if (idx < flat.length - 1) loadModule(flat[idx + 1].id);
+}
+
+function updatePrevNext() {
+  const nav = document.getElementById("prevNextNav");
+  if (!currentModuleId) { nav.style.display = "none"; return; }
+  const flat = buildFlatModuleList();
+  const idx = flat.findIndex(m => m.id === currentModuleId);
+  if (idx === -1) { nav.style.display = "none"; return; }
+
+  document.getElementById("pnPrev").style.visibility = idx > 0 ? "visible" : "hidden";
+  document.getElementById("pnNext").style.visibility = idx < flat.length - 1 ? "visible" : "hidden";
+  nav.style.display = "";
 }
 
 // ==================== TOC ====================
@@ -365,26 +439,44 @@ function highlightTOC(link) {
   link.classList.add("active");
 }
 
-// ==================== Copy Buttons ====================
+// ==================== Copy Buttons + Fullscreen ====================
 function addCopyButtons() {
   document.querySelectorAll(".cw").forEach(wrap => {
-    if (wrap.querySelector(".copy-btn")) return;
-    const btn = document.createElement("button");
-    btn.className = "copy-btn";
-    btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> 复制代码';
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const code = wrap.querySelector("pre code") || wrap.querySelector("pre");
-      navigator.clipboard.writeText(code ? code.innerText : "").then(() => {
-        btn.classList.add("copied");
-        btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> 已复制';
-        setTimeout(() => {
-          btn.classList.remove("copied");
-          btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> 复制代码';
-        }, 2000);
+    // Copy button
+    if (!wrap.querySelector(".copy-btn")) {
+      const btn = document.createElement("button");
+      btn.className = "copy-btn";
+      btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> 复制代码';
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const code = wrap.querySelector("pre code") || wrap.querySelector("pre");
+        navigator.clipboard.writeText(code ? code.innerText : "").then(() => {
+          btn.classList.add("copied");
+          btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> 已复制';
+          setTimeout(() => {
+            btn.classList.remove("copied");
+            btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> 复制代码';
+          }, 2000);
+        });
       });
-    });
-    wrap.appendChild(btn);
+      wrap.appendChild(btn);
+    }
+
+    // Fullscreen button in cbar
+    const cbar = wrap.querySelector(".cbar");
+    if (cbar && !cbar.querySelector(".fullscreen-btn")) {
+      const fsBtn = document.createElement("button");
+      fsBtn.className = "fullscreen-btn";
+      fsBtn.innerHTML = '⛶';
+      fsBtn.title = "全屏查看";
+      fsBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const code = wrap.querySelector("pre code") || wrap.querySelector("pre");
+        const fname = wrap.querySelector(".fname")?.textContent || "";
+        openFullscreenCode(code ? code.textContent : "", fname);
+      });
+      cbar.appendChild(fsBtn);
+    }
   });
 }
 
@@ -414,6 +506,37 @@ function addCodeFolding() {
   });
 }
 
+// ==================== Line Numbers ====================
+function injectLineNumbers() {
+  document.querySelectorAll(".cw").forEach(wrap => {
+    wrap.classList.add("ln");
+    const code = wrap.querySelector("pre code");
+    if (!code || code.querySelector("span")) return;
+    const lines = code.innerHTML.split("\n");
+    code.innerHTML = lines.map(line => `<span>${line}</span>`).join("\n");
+  });
+}
+
+// ==================== Fullscreen Code ====================
+function openFullscreenCode(code, fname) {
+  document.getElementById("fsFname").textContent = fname || "代码";
+  document.getElementById("fsCodeContent").textContent = code;
+  document.getElementById("fsCodeMask").classList.add("show");
+  document.body.style.overflow = "hidden";
+}
+
+function closeFullscreenCode() {
+  document.getElementById("fsCodeMask").classList.remove("show");
+  document.body.style.overflow = "";
+}
+
+// Close fullscreen on Escape
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && document.getElementById("fsCodeMask").classList.contains("show")) {
+    closeFullscreenCode();
+  }
+});
+
 // ==================== Toast ====================
 function showToast(msg) {
   const t = document.getElementById("toast");
@@ -421,6 +544,15 @@ function showToast(msg) {
   t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), 2000);
 }
+
+// ==================== Keyboard Shortcuts ====================
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+    e.preventDefault();
+    const input = document.getElementById("searchInput");
+    if (input) input.focus();
+  }
+});
 
 // ==================== Boot ====================
 document.addEventListener("DOMContentLoaded", init);
