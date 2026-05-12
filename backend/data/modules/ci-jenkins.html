@@ -1,0 +1,17 @@
+<h3>Jenkins Pipeline</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">Jenkinsfile</span></div>
+<pre><code>pipeline {
+    agent any
+    parameters {
+        choice(name: 'ENV', choices: ['staging', 'prod'])
+        choice(name: 'SUITE', choices: ['smoke', 'regression'])
+    }
+    stages {
+        stage('Setup') { steps { sh 'pip install -r backend/requirements.txt' } }
+        stage('API') { steps { sh 'pytest tests/test_api_*.py -v -n auto' } }
+        stage('UI') { steps { sh 'pytest tests/test_ui_*.py --browser=chromium -v' } }
+    }
+    post {
+        failure { slackSend(channel: '#qa-alerts', message: 'Tests failed') }
+    }
+}</code></pre></div>

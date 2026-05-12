@@ -1,0 +1,17 @@
+<h3>Docker + Selenium Grid</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">docker-compose.yml</span></div>
+<pre><code>services:
+  app:
+    build: .
+    ports: ["8888:8888"]
+
+  selenium-hub:
+    image: selenium/hub:4
+    ports: ["4444:4444"]
+
+  chrome:
+    image: selenium/node-chrome:4
+    shm_size: '2gb'
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_NODE_MAX_SESSIONS=4</code></pre></div>

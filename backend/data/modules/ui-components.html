@@ -1,0 +1,21 @@
+<h3>组件化封装</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">components/data_table.py</span></div>
+<pre><code>class DataTable:
+    '''Reusable table component for any Page'''
+
+    def __init__(self, page, selector):
+        self.container = page.locator(selector)
+        self.rows = self.container.locator("tbody tr")
+
+    def count(self): return self.rows.count()
+    def assert_has_row(self, text):
+        expect(self.rows.filter(has_text=text)).to_have_count(1)
+    def click_row(self, text):
+        self.rows.filter(has_text=text).click()
+
+
+class Modal:
+    def __init__(self, page):
+        self.dlg = page.locator(".modal")
+    def confirm(self): self.dlg.get_by_text("OK").click()
+    def cancel(self): self.dlg.get_by_text("Cancel").click()</code></pre></div>

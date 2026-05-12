@@ -1,0 +1,15 @@
+<h3>视觉回归测试</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">tests/ui/test_visual.py</span></div>
+<pre><code>def test_dashboard_snapshot(page, assert_snapshot):
+    page.goto("/dashboard")
+    page.wait_for_load_state("networkidle")
+    assert_snapshot(page.screenshot(full_page=True))
+
+
+def test_button_states(page):
+    page.goto("/form")
+    btn = page.get_by_role("button", name="Submit")
+    for state in ["default", "hover", "focus", "disabled"]:
+        if state == "hover": btn.hover()
+        elif state == "focus": btn.focus()
+        expect(btn.screenshot()).to_match_snapshot(f"btn_{state}.png")</code></pre></div>

@@ -1,0 +1,20 @@
+<h3>Allure 报告发布到 GitHub Pages</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">.github/workflows/allure-report.yml</span></div>
+<pre><code>name: Publish Allure
+on:
+  workflow_run:
+    workflows: ["E2E Tests"]
+    types: [completed]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+      - run: |
+          pip install allure-combine
+          allure-combine ./allure-results -o report
+      - uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./report</code></pre></div>

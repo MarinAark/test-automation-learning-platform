@@ -1,0 +1,25 @@
+<h3>参数化高级用法</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">test_param_advanced.py</span></div>
+<pre><code>import pytest
+
+
+# 1. Combinatorial — browser x viewport = 2x3 = 6 cases
+@pytest.mark.parametrize("browser", ["chromium", "firefox"])
+@pytest.mark.parametrize("viewport", ["desktop", "tablet", "mobile"])
+def test_responsive(browser, viewport): pass
+
+
+# 2. indirect — param goes to fixture
+@pytest.fixture
+def role(request): return create_user(role=request.param)
+
+@pytest.mark.parametrize("role", ["admin","user","viewer"], indirect=True)
+def test_permissions(role): pass  # role comes from fixture
+
+
+# 3. Selective skip/xfail
+@pytest.mark.parametrize("data,exp", [
+    pytest.param({"n":"x"*300}, 422, marks=pytest.mark.skip(reason="Not live yet")),
+    pytest.param({"n":"test"}, 201, id="Normal"),
+])
+def test_create(data, exp): pass</code></pre></div>

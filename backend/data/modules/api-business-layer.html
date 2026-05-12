@@ -1,0 +1,45 @@
+<h3>三层架构：Client -> API Wrapper -> TestCase</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">apis/user_api.py</span></div>
+<pre><code>class UserAPI:
+    '''Business-layer: semantic methods wrapping HTTP details'''
+
+    def __init__(self, client):
+        self.c = client
+        self.prefix = "/api/v1/users"
+
+    def create(self, name, email, role="user"):
+        resp = self.c.post(self.prefix, data={
+            "name": name, "email": email, "role": role
+        })
+        assert resp.status_code == 201, f"Create failed: {resp.text}"
+        return resp.json()
+
+    def get(self, uid):
+        resp = self.c.get(f"{self.prefix}/{uid}")
+        assert resp.status_code == 200
+        return resp.json()
+
+    def search(self, keyword=None, role=None, page=1, size=20):
+        params = {"page": page, "size": size}
+        if keyword: params["q"] = keyword
+        if role: params["role"] = role
+        return self.c.get(self.prefix, params=params).json()
+
+    def update(self, uid, **fields):
+        resp = self.c.put(f"{self.prefix}/{uid}", data=fields)
+        assert resp.status_code == 200
+        return resp.json()
+
+    def delete(self, uid):
+        assert self.c.delete(f"{self.prefix}/{uid}").status_code == 204
+
+
+# ===== Test layer =====
+class TestUserCRUD:
+
+    def test_create_and_get(self, api):
+        created = api.create(name="Alice", email="a@test.com", role="admin")
+        fetched = api.get(created["id"])
+        assert fetched["name"] == "Alice"
+        assert fetched["role"] == "admin"
+        api.delete(created["id"])</code></pre></div>

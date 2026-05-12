@@ -1,0 +1,52 @@
+<h3>Token 自动刷新管理器</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">core/auth_manager.py</span></div>
+<pre><code>import time
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass
+class TokenInfo:
+    access_token: str
+    refresh_token: str
+    expires_at: float  # unix timestamp
+
+    def is_expired(self) -> bool:
+        return time.time() >= self.expires_at - 60  # refresh early
+
+
+class AuthManager:
+    '''Auto-login + auto-refresh + expired re-login'''
+
+    def __init__(self, client):
+        self.client = client
+        self.token_info: Optional[TokenInfo] = None
+
+    def login(self, username, password) -> TokenInfo:
+        resp = self.client.post("/auth/login", data={
+            "username": username, "password": password
+        })
+        assert resp.status_code == 200, f"Login failed: {resp.text}"
+        data = resp.json()
+        self.token_info = TokenInfo(
+            access_token=data["access_token"],
+            refresh_token=data["refresh_token"],
+            expires_at=time.time() + data.get("expires_in", 3600),
+        )
+        self.client.session.headers["Authorization"] =             f"Bearer {self.token_info.access_token}"
+        return self.token_info
+
+    def ensure_valid_token(self):
+        if not self.token_info:
+            raise RuntimeError("Call login() first")
+        if self.token_info.is_expired():
+            resp = self.client.post("/auth/refresh", data={
+                "refresh_token": self.token_info.refresh_token
+            })
+            if resp.status_code == 200:
+                data = resp.json()
+                self.token_info.access_token = data["access_token"]
+                self.token_info.expires_at = time.time() + data["expires_in"]
+                self.client.session.headers["Authorization"] =                     f"Bearer {data['access_token']}"
+            else:
+                raise RuntimeError("Token refresh failed, re-login needed")</code></pre></div>

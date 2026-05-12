@@ -1,0 +1,35 @@
+<h3>Page Object 设计模式</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">pages/login_page.py</span></div>
+<pre><code>class LoginPage:
+    '''Elements centralized - change once, fix everywhere'''
+
+    def __init__(self, page):
+        self.p = page
+        self.url = "/login"
+        self.username = page.get_by_label("Username")
+        self.password = page.get_by_label("Password")
+        self.submit = page.get_by_role("button", name="Login")
+
+    def goto(self):
+        self.p.goto(self.url)
+        return self
+
+    def login(self, user, pwd):
+        self.username.fill(user)
+        self.password.fill(pwd)
+        self.submit.click()
+        return DashboardPage(self.p)
+
+
+class DashboardPage:
+    def __init__(self, page):
+        self.p = page
+
+    def assert_loaded(self):
+        expect(self.p).to_have_url("/dashboard")
+        return self
+
+
+# Test becomes extremely clean
+def test_login(page):
+    LoginPage(page).goto().login("admin", "Test@123").assert_loaded()</code></pre></div>

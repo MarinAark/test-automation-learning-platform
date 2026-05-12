@@ -1,0 +1,40 @@
+<h3>JSON Schema 自动校验</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">core/schema_validator.py</span></div>
+<pre><code>import json
+from pathlib import Path
+from jsonschema import validate, ValidationError
+
+
+class SchemaValidator:
+
+    def __init__(self, schemas_dir="schemas"):
+        self.schemas = {}
+        for f in Path(schemas_dir).glob("*.json"):
+            self.schemas[f.stem] = json.loads(f.read_text())
+
+    def validate(self, schema_name, data):
+        try:
+            validate(instance=data, schema=self.schemas[schema_name])
+        except ValidationError as e:
+            raise AssertionError(f"Schema failed: {e.message}")
+
+
+# schemas/user.json
+'''
+{
+  "type": "object",
+  "required": ["id", "name", "email", "role"],
+  "properties": {
+    "id":    {"type": "integer", "minimum": 1},
+    "name":  {"type": "string", "minLength": 1, "maxLength": 100},
+    "email": {"type": "string", "format": "email"},
+    "role":  {"type": "string", "enum": ["user", "admin"]}
+  },
+  "additionalProperties": false
+}
+'''
+
+# Usage
+def test_schema(api, validator):
+    user = api.create(name="test", email="t@t.com")
+    validator.validate("user", user)  # auto-validate structure</code></pre></div>

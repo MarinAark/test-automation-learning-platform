@@ -1,0 +1,9 @@
+<h3>HTTP 方法与状态码</h3>
+<table>
+<tr><th>方法</th><th>语义</th><th>幂等</th><th>安全</th><th>典型状态码</th></tr>
+<tr><td>GET</td><td>获取资源</td><td>Yes</td><td>Yes</td><td>200 / 404</td></tr>
+<tr><td>POST</td><td>创建资源</td><td>No</td><td>No</td><td>201 / 422</td></tr>
+<tr><td>PUT</td><td>全量更新</td><td>Yes</td><td>No</td><td>200 / 204</td></tr>
+<tr><td>PATCH</td><td>部分更新</td><td>No</td><td>No</td><td>200</td></tr>
+<tr><td>DELETE</td><td>删除资源</td><td>Yes</td><td>No</td><td>204 / 404</td></tr>
+</table>

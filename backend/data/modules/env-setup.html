@@ -1,0 +1,12 @@
+<h3>环境搭建</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">Terminal</span></div>
+<pre><code>mkdir test-automation-framework && cd test-automation-framework
+python3 -m venv venv
+source venv/bin/activate
+
+pip install pytest pytest-xdist pytest-rerunfailures pytest-timeout
+pip install requests httpx jsonschema pydantic
+pip install playwright allure-pytest
+playwright install --with-deps chromium
+
+pip freeze > requirements.txt</code></pre></div>

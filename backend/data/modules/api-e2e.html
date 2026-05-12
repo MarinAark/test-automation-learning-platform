@@ -1,0 +1,23 @@
+<h3>全链路场景测试</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">tests/test_e2e_order_flow.py</span></div>
+<pre><code>class TestOrderE2E:
+    '''Register -> Login -> Order -> Pay -> Verify'''
+
+    def test_full_flow(self, client, user_api, order_api, payment_api):
+        # 1. Register
+        user = user_api.create(name="E2E User", email="e2e@test.com")
+        # 2. Login
+        auth = AuthManager(client)
+        auth.login(user["name"], "Test@123")
+        # 3. Create order
+        order = order_api.create(product_id=100, quantity=2)
+        assert order["status"] == "pending_payment"
+        # 4. Pay
+        payment = payment_api.pay(order["id"], method="wechat")
+        assert payment["status"] == "success"
+        # 5. Verify status updated
+        updated = order_api.get(order["id"])
+        assert updated["status"] == "paid"
+        # Cleanup
+        order_api.cancel(order["id"])
+        user_api.delete(user["id"])</code></pre></div>

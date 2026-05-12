@@ -1,0 +1,14 @@
+<h3>Mock 服务隔离</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">tests/test_with_mock.py</span></div>
+<pre><code>import responses
+
+
+@responses.activate
+def test_order_when_payment_down(api):
+    '''Verify order service degrades when payment is unavailable'''
+    responses.add(responses.POST, "https://payment.internal/pay",
+                  json={"error": "Service Unavailable"}, status=503)
+
+    resp = api.c.post("/api/v1/orders", data={"product_id": 1})
+    assert resp.status_code == 202
+    assert resp.json()["status"] == "pending_payment"</code></pre></div>

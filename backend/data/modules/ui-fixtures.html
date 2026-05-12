@@ -1,0 +1,29 @@
+<h3>浏览器 Fixture 管理</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">tests/ui/conftest.py</span></div>
+<pre><code>import pytest
+from playwright.sync_api import sync_playwright
+from pathlib import Path
+
+
+@pytest.fixture(scope="session")
+def browser(request):
+    '''Session-level: launch browser once for all tests'''
+    browser_type = request.config.getoption("--browser", default="chromium")
+    headed = request.config.getoption("--headed", default=False)
+    with sync_playwright() as p:
+        b = getattr(p, browser_type).launch(headless=not headed)
+        yield b
+        b.close()
+
+
+@pytest.fixture
+def page(browser, request):
+    '''Per-test Page + auto-screenshot on failure'''
+    ctx = browser.new_context(viewport={"width":1920,"height":1080})
+    page = ctx.new_page()
+    yield page
+    # Auto screenshot on failure
+    if hasattr(request.node, "rep_call") and request.node.rep_call.failed:
+        Path("screenshots").mkdir(exist_ok=True)
+        page.screenshot(path=f"screenshots/{request.node.name}.png")
+    ctx.close()</code></pre></div>

@@ -1,0 +1,10 @@
+<h3>conftest 层级管理</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">conftest hierarchy</span></div>
+<pre><code># conftest.py               -> Root (CLI args, session fixtures)
+# tests/conftest.py         -> Common (api client, db)
+# tests/api/conftest.py     -> API-specific
+# tests/ui/conftest.py      -> UI-specific (browser, page)
+# tests/ui/order/conftest.py -> Order module specific
+#
+# Lookup: current dir -> parent -> ... -> root
+# Child can override parent's fixture with same name</code></pre></div>

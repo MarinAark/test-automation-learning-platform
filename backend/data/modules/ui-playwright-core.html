@@ -1,0 +1,36 @@
+<h3>Playwright 测试用例</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">tests/ui/test_login.py</span></div>
+<pre><code>import pytest
+from playwright.sync_api import Page, expect
+
+
+class TestLogin:
+
+    @pytest.fixture(autouse=True)
+    def goto_login(self, page: Page):
+        page.goto("/login")
+        page.wait_for_load_state("networkidle")
+
+    def test_login_success(self, page: Page):
+        '''P0: Normal login flow'''
+        page.get_by_label("Username").fill("admin")
+        page.get_by_label("Password").fill("Test@123456")
+        page.get_by_role("button", name="Login").click()
+
+        # Playwright auto-waits for element visibility
+        expect(page.get_by_text("Welcome back")).to_be_visible()
+        expect(page).to_have_url("/dashboard")
+
+        # Verify localStorage token
+        token = page.evaluate("() => localStorage.getItem('access_token')")
+        assert token is not None
+
+    @pytest.mark.parametrize("user,pwd,err", [
+        ("admin", "wrong", "Invalid credentials"),
+        ("", "Test@123", "Username required"),
+    ])
+    def test_login_validation(self, page, user, pwd, err):
+        page.get_by_label("Username").fill(user)
+        page.get_by_label("Password").fill(pwd)
+        page.get_by_role("button", name="Login").click()
+        expect(page.get_by_text(err)).to_be_visible()</code></pre></div>

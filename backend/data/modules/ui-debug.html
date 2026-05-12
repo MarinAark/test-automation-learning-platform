@@ -1,0 +1,11 @@
+<h3>Trace 调试</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">启用 Trace</span></div>
+<pre><code># CLI
+pytest --tracing=retain-on-failure   # Only on failure
+pytest --tracing=on                   # All tests
+
+# Code
+context.tracing.start(screenshots=True, snapshots=True)
+# ... test ...
+context.tracing.stop(path="trace.zip")
+# View: playwright show-trace trace.zip</code></pre></div>

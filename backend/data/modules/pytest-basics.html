@@ -1,0 +1,22 @@
+<h3>pytest.ini 配置</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">pytest.ini</span></div>
+<pre><code>[pytest]
+minversion = 7.0
+testpaths = tests
+python_files = test_*.py
+python_classes = Test*
+python_functions = test_*
+addopts =
+    -v
+    --strict-markers
+    --tb=short
+    --maxfail=5
+    -n auto
+    --reruns 2
+    --alluredir=allure-results
+markers =
+    smoke: 冒烟测试
+    regression: 回归测试
+    p0: 核心功能
+    p1: 重要功能
+    p2: 边缘场景</code></pre></div>

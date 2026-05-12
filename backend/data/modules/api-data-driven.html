@@ -1,0 +1,30 @@
+<h3>数据驱动测试</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">tests/test_data_driven.py</span></div>
+<pre><code>import json, pytest
+from pathlib import Path
+
+
+def load_cases(filename):
+    path = Path(__file__).parent / "testdata" / filename
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize("case", load_cases("user_cases.json"),
+                         ids=lambda c: c["name"])
+def test_create_user(api, case):
+    resp = api.c.post("/api/v1/users", data=case["payload"])
+    assert resp.status_code == case["expected_status"]
+    if case.get("expected_field"):
+        assert case["expected_field"] in resp.json().get("errors", {})
+    if resp.status_code == 201:
+        api.delete(resp.json()["id"])
+
+
+# testdata/user_cases.json
+'''
+[
+  {"name":"Normal", "payload":{"name":"A","email":"a@b.com"}, "expected_status":201},
+  {"name":"Missing name", "payload":{"email":"a@b.com"}, "expected_status":422},
+  {"name":"Bad email", "payload":{"name":"A","email":"bad"}, "expected_status":422}
+]
+'''</code></pre></div>

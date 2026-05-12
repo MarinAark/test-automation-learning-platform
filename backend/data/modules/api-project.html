@@ -1,0 +1,24 @@
+<h3>接口自动化项目结构</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">api_test_framework/</span></div>
+<pre><code>api_test_framework/
+├── config/settings.yaml         # Multi-env config
+├── core/
+│   ├── api_client.py            # HTTP Client (retry/auth/logging)
+│   ├── auth_manager.py          # Token manager
+│   └── schema_validator.py      # JSON Schema validator
+├── apis/                        # Business wrappers
+│   ├── user_api.py
+│   ├── order_api.py
+│   └── payment_api.py
+├── schemas/                     # JSON Schema files
+├── testdata/                    # Data-driven cases
+├── tests/
+│   ├── conftest.py
+│   ├── test_user_crud.py
+│   ├── test_user_data_driven.py
+│   └── contract/
+├── utils/
+│   ├── logger.py
+│   └── faker_helper.py
+├── pytest.ini
+└── requirements.txt</code></pre></div>

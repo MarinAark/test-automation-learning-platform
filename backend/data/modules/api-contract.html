@@ -1,0 +1,23 @@
+<h3>契约测试 (Pact)</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">tests/contract/test_user_contract.py</span></div>
+<pre><code>import pytest
+from pact import Consumer, Provider
+
+
+@pytest.fixture(scope="session")
+def pact():
+    pact = Consumer("UserWeb").has_pact_with(
+        Provider("UserService"), port=1234
+    )
+    pact.start_service()
+    yield pact
+    pact.stop_service()
+
+
+def test_user_contract(pact):
+    expected = {"id": 1, "name": "Alice", "email": "a@test.com"}
+
+    pact.given("User id=1 exists")         .upon_receiving("GET user detail")         .with_request(method="GET", path="/api/v1/users/1")         .will_respond_with(status=200, body=expected)
+
+    with pact:
+        assert UserAPI(client).get(1) == expected</code></pre></div>

@@ -1,0 +1,18 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    ports: ["8888:8888"]
+    environment:
+      - ENV=production
+
+  selenium-hub:
+    image: selenium/hub:4
+    ports: ["4444:4444"]
+
+  chrome:
+    image: selenium/node-chrome:4
+    shm_size: '2gb'
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_NODE_MAX_SESSIONS=4

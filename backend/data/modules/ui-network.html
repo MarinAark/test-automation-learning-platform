@@ -1,0 +1,17 @@
+<h3>网络拦截 Mock</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">tests/ui/test_network_mock.py</span></div>
+<pre><code>def test_empty_dashboard(page):
+    '''Mock API returning empty data -> verify empty state UI'''
+    page.route("**/api/v1/orders?**", lambda r: r.fulfill(
+        status=200, content_type="application/json",
+        body='{"items":[], "total":0}',
+    ))
+    page.goto("/dashboard")
+    expect(page.get_by_text("No data yet")).to_be_visible()
+
+
+def test_server_error(page):
+    '''Mock 500 error -> verify error handling UI'''
+    page.route("**/api/**", lambda r: r.fulfill(status=500))
+    page.goto("/dashboard")
+    expect(page.get_by_text("Something went wrong")).to_be_visible()</code></pre></div>

@@ -1,0 +1,36 @@
+<h3>GitHub Actions</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">.github/workflows/e2e-tests.yml</span></div>
+<pre><code>name: E2E Tests
+on:
+  push: { branches: [main, develop] }
+  pull_request: { branches: [main] }
+  schedule: [{ cron: '0 3 * * *' }]
+
+jobs:
+  api-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_DB: test, POSTGRES_PASSWORD: pass }
+        ports: [5432:5432]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install -r backend/requirements.txt
+      - run: pytest tests/test_api_*.py -v -n auto --alluredir=allure-results
+
+  ui-tests:
+    needs: api-tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: { browser: [chromium, firefox] }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install -r backend/requirements.txt
+      - run: playwright install --with-deps ${{ matrix.browser }}
+      - run: pytest tests/test_ui_*.py --browser=${{ matrix.browser }} -v</code></pre></div>

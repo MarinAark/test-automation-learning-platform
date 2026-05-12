@@ -1,0 +1,35 @@
+<h3>Fixtures 深度用法</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">test_fixture_patterns.py</span></div>
+<pre><code>import pytest
+
+
+# 1. yield fixture — setup/teardown
+@pytest.fixture
+def db():
+    conn = create_connection()
+    yield conn      # test runs here
+    conn.close()    # teardown
+
+
+# 2. Fixture chaining
+@pytest.fixture
+def user(db):       # auto-depends on db
+    u = db.insert_user("test")
+    yield u
+    db.delete_user(u.id)
+
+
+# 3. Factory pattern — parameterizable creation
+@pytest.fixture
+def make_user(api):
+    created = []
+    def _create(name="test", role="user", **kw):
+        u = api.create(name=name, role=role, **kw)
+        created.append(u)
+        return u
+    yield _create
+    for u in created: api.delete(u["id"])
+
+def test_roles(make_user):
+    admin = make_user(role="admin")
+    viewer = make_user(role="viewer")</code></pre></div>
