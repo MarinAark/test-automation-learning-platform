@@ -102,3 +102,47 @@ Assertion(resp["status"]) == "ok"
 Assertion(resp["code"]) > 100
 # Assertion(resp["status"]) == "error"  # 会抛出 AssertionError</code></pre>
 </div>
+
+<h3>实战场景：用组合替代深层继承</h3>
+<p>测试框架中常见"TestBase → APITestBase → LoginTest"的深层继承链。随着业务增长，基类不断膨胀（截图、日志、HTTP、DB 等），最终变成"上帝类"。组合模式能解决这个问题。</p>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">组合优于继承</span></div>
+<pre><code># 用组合 (Mixin / 依赖注入) 替代深层继承
+class ScreenshotMixin:
+    def take_screenshot(self, name):
+        self.page.screenshot(path=f"screenshots/{name}.png")
+
+class LoggerMixin:
+    def log_step(self, step):
+        print(f"[{self.__class__.__name__}] {step}")
+
+class LoginTest(ScreenshotMixin, LoggerMixin):
+    """平铺的 Mixin 组合，每个 Mixin 职责单一"""
+    def __init__(self, page):
+        self.page = page
+
+    def test_login(self):
+        self.log_step("打开登录页")
+        self.page.goto("/login")
+        self.page.fill("[name=user]", "admin")
+        self.take_screenshot("after_login")
+        self.log_step("登录完成")</code></pre>
+</div>
+
+<div class="best-practice">
+<div class="bp-title">💡 OOP 在测试框架中的最佳实践</div>
+<ul>
+<li><strong>组合优于继承：</strong>Mixin 类比深层继承链更易维护，每个 Mixin 只做一件事。</li>
+<li><strong>依赖注入：</strong>不要 inside class 中 <code>import requests</code> 并 hard-code URL，将 client 作为构造函数参数传入，便于测试时 mock。</li>
+<li><strong>避免 God Object：</strong>若一个类同时处理 HTTP、DB、文件、认证，立即拆分。</li>
+</ul>
+</div>
+
+<div class="pitfall">
+<div class="pf-title">⚠️ 避坑指南：继承陷阱与 super() 调用</div>
+<ul>
+<li><strong>MRO 顺序：</strong>Python 使用 C3 线性化算法决定多重继承的方法查找顺序。使用 <code>ClassName.__mro__</code> 查看。</li>
+<li><strong>super() 缺失：</strong>覆盖 <code>__init__</code> 时忘记调用 <code>super().__init__()</code> 会导致父类属性未初始化，产生难以调试的 AttributeError。</li>
+<li><strong>测试数据污染：</strong>若父类 <code>__init__</code> 中创建了可变默认参数（如 list/dict），所有子类实例会共享同一个对象 — 这是经典的 Python 陷阱。</li>
+</ul>
+</div>

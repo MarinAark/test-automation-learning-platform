@@ -100,3 +100,24 @@ def read_test_data(filename, batch_size=100):
 for batch in read_test_data("large_test_cases.csv"):
     print(f"处理 {len(batch)} 条用例")</code></pre>
 </div>
+
+<h3>实战场景：装饰器 vs 显式重试 — 何时用哪个？</h3>
+<p>自动化测试中有两种常见的重试策略。装饰器适合"无侵入"地给已有函数加能力；但当重试参数与业务逻辑耦合时，显式控制更清晰。</p>
+
+<div class="best-practice">
+<div class="bp-title">💡 选择指南</div>
+<ul>
+<li><strong>用装饰器：</strong>当你希望对<em>所有</em>函数统一添加重试、计时、日志等横切关注点时。例如：整个项目的 HTTP 调用统一加持 <code>@auto_retry</code>。</li>
+<li><strong>用显式重试：</strong>当重试参数（次数、间隔、退避策略）依赖于调用方的上下文时。例如：不同接口需要不同的重试策略，使用 <code>for retry in range(n):</code> 直接控制更灵活。</li>
+<li><strong>典型反模式：</strong>使用同一个全局重试装饰器处理所有异常（包括断言错误），导致测试失败后被反复重试，浪费 CI 资源且日志混乱。应在装饰器中加 <code>retry_on</code> 白名单参数。</li>
+</ul>
+</div>
+
+<div class="pitfall">
+<div class="pf-title">⚠️ 避坑指南：@wraps 丢失与装饰器堆叠顺序</div>
+<ul>
+<li><strong>丢失元数据：</strong>若装饰器未使用 <code>@wraps(func)</code>，被装饰函数的 <code>__name__</code> 会变为 <code>wrapper</code>。pytest 的 <code>-k</code> 按名称筛选用例时会失败。</li>
+<li><strong>堆叠顺序：</strong><code>@timeit</code> 和 <code>@retry</code> 的上下顺序决定执行流程。装饰器从下往上执行（最靠近函数的最先包裹），理解这一点对正确组合装饰器至关重要。</li>
+<li><strong>参数化装饰器：</strong>带参数的装饰器实际上是返回装饰器的函数，需要额外一层嵌套，初学者容易遗漏最外层。</li>
+</ul>
+</div>

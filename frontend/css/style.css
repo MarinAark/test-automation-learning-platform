@@ -409,3 +409,69 @@ tr:hover td { background:rgba(255,255,255,0.008); }
   .toc-sidebar{display:none}
   .prev-next-nav{left:8px;right:8px;transform:none;}
 }
+
+/* ===== Best Practice component ===== */
+.best-practice {
+  background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);
+  border-left:3px solid var(--green);border-radius:var(--radius);
+  padding:14px 18px;margin:16px 0;font-size:0.82rem;
+}
+.best-practice .bp-title { font-weight:700;color:var(--green);margin-bottom:6px;font-size:0.85rem; }
+.best-practice ul { margin-left:18px;color:var(--text); }
+.best-practice ul li { margin-bottom:4px;line-height:1.65; }
+.best-practice code { background:rgba(16,185,129,0.1);padding:1px 5px;border-radius:3px;font-size:0.78rem;color:var(--green); }
+
+/* ===== Mermaid diagrams ===== */
+.mermaid-wrap { text-align:center;margin:16px 0;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow-x:auto; }
+.mermaid-wrap svg { max-width:100%;height:auto; }
+
+/* ===== Note popup ===== */
+.note-popup-mask { position:fixed;inset:0;z-index:998;background:rgba(0,0,0,0.4);display:none; }
+.note-popup-mask.show { display:flex;align-items:center;justify-content:center; }
+.note-popup {
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:20px;width:420px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.3);
+}
+.note-popup .np-quote { font-size:0.82rem;color:var(--accent);padding:8px 12px;background:rgba(59,130,246,0.06);border-left:3px solid var(--accent);margin-bottom:12px;border-radius:4px;max-height:80px;overflow-y:auto; }
+.note-popup textarea { width:100%;height:100px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px;font-size:0.82rem;resize:vertical;font-family:inherit; }
+.note-popup textarea:focus { outline:none;border-color:var(--accent); }
+.note-popup .np-actions { display:flex;gap:8px;margin-top:12px;justify-content:flex-end; }
+.note-popup .np-actions button {
+  padding:6px 16px;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;
+  border:1px solid var(--border);background:var(--surface);color:var(--text);transition:all 0.12s;
+}
+.note-popup .np-actions button.np-save { background:var(--accent);border-color:var(--accent);color:#fff; }
+.note-popup .np-actions button.np-save:hover { opacity:0.85; }
+.note-popup .np-actions button:hover { background:var(--surface2); }
+
+/* Selection tooltip */
+.sel-tip { position:absolute;z-index:997;display:none;padding:5px 10px;background:var(--accent);color:#fff;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.2);white-space:nowrap; }
+.sel-tip.show { display:block; }
+
+/* Notes indicator in content */
+.note-highlight { background:rgba(245,158,11,0.18);border-bottom:2px dashed var(--yellow);cursor:pointer;padding:1px 0;transition:background 0.15s; }
+.note-highlight:hover { background:rgba(245,158,11,0.3); }
+
+/* Notes list in sidebar */
+.notes-section { margin-top:12px;border-top:1px solid var(--border);padding-top:10px; }
+.notes-section .ns-title { font-size:0.75rem;font-weight:700;color:var(--text);margin-bottom:6px;display:flex;align-items:center;gap:4px; }
+.notes-section .ns-item { font-size:0.72rem;color:var(--text2);padding:4px 8px;border-radius:4px;cursor:pointer;transition:all 0.12s;line-height:1.4; }
+.notes-section .ns-item:hover { background:var(--surface2);color:var(--text); }
+
+/* Export dropdown */
+.export-wrap { position:relative;flex-shrink:0; }
+.export-menu { display:none;position:absolute;top:100%;right:0;z-index:300;margin-top:4px;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.2);overflow:hidden;min-width:140px; }
+.export-menu.show { display:block; }
+.export-menu a { display:block;padding:8px 14px;font-size:0.78rem;color:var(--text);text-decoration:none;cursor:pointer;transition:background 0.1s; }
+.export-menu a:hover { background:var(--surface2); }
+
+/* Print styles */
+@media print {
+  .topbar,.sidebar,.toc-sidebar,.prev-next-nav,.complete-btn,.res-section,.copy-btn,.code-fold,.fullscreen-btn,.fs-code-mask,.toast { display:none!important; }
+  .content { padding:0!important;margin:0!important;max-width:100%!important; }
+  .layout { display:block!important; }
+  .cw { break-inside:avoid;border:1px solid #ccc!important; }
+  .cw pre { white-space:pre-wrap!important; }
+  body { font-size:12pt;color:#000;background:#fff; }
+  h2,h3 { break-after:avoid; }
+}

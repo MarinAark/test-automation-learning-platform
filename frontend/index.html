@@ -24,6 +24,13 @@
   <button class="icon-btn" id="themeToggle" data-tooltip="切换主题" onclick="toggleTheme()">🌙</button>
   <button class="icon-btn" id="bookmarkBtn" data-tooltip="收藏此文章" onclick="toggleBookmark()">☆</button>
   <a class="icon-btn" data-tooltip="GitHub 仓库" href="https://github.com/MarinAark/test-automation-learning-platform" target="_blank" style="text-decoration:none;">⚙</a>
+  <div class="export-wrap">
+    <button class="icon-btn" id="exportBtn" data-tooltip="导出" onclick="toggleExportMenu()">📥</button>
+    <div class="export-menu" id="exportMenu">
+      <a onclick="exportPDF();return false;">🖨 导出 PDF</a>
+      <a onclick="exportMarkdown();return false;">📝 导出 Markdown</a>
+    </div>
+  </div>
   <div class="progress-bar" id="progressBarWrap"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
   <span class="progress-text" id="progressText">0%</span>
 </div>
@@ -60,5 +67,21 @@
 </div>
 
 <script src="/js/app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+
+<!-- Note popup -->
+<div class="note-popup-mask" id="notePopupMask" onclick="closeNotePopup()">
+  <div class="note-popup" onclick="event.stopPropagation()">
+    <div class="np-quote" id="npQuote"></div>
+    <textarea id="npText" placeholder="在这里写下你的笔记..."></textarea>
+    <div class="np-actions">
+      <button onclick="deleteNote()">删除</button>
+      <button class="np-save" onclick="saveNote()">保存笔记</button>
+    </div>
+  </div>
+</div>
+
+<!-- Selection tooltip -->
+<div class="sel-tip" id="selTip" onclick="openNotePopup()">📝 记笔记</div>
 </body>
 </html>

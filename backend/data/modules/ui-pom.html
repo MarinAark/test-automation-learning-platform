@@ -1,4 +1,52 @@
 <h3>Page Object 设计模式</h3>
+
+<h3>为什么需要 POM？</h3>
+<p>在没有 POM 的项目中，测试代码通常"散落"着 <code>page.locator("#username").fill("admin")</code> 这样直接的元素操作。当 UI 改版（例如 <code>#username</code> 变成 <code>[data-testid=username]</code>），需要修改几十个测试文件。POM 将<strong>元素定位</strong>集中管理，修改一处即可。</p>
+
+<pre><code class="language-mermaid">graph TB
+    subgraph "Test Layer 测试层"
+        T1["test_login.py<br/>LoginPage.goto().login()<br/>DashBoardPage.assert_loaded()"]
+        T2["test_profile.py<br/>DashboardPage.nav_to_profile()<br/>ProfilePage.edit_name()"]
+    end
+
+    subgraph "Page Object Layer 页面对象层"
+        P1["LoginPage<br/>元素: username, password, submit<br/>动作: goto(), login()"]
+        P2["DashboardPage<br/>元素: nav_profile, user_menu<br/>动作: assert_loaded(), nav_to_profile()"]
+        P3["ProfilePage<br/>元素: name_input, save_btn<br/>动作: edit_name(), get_name()"]
+    end
+
+    subgraph "Component Layer 组件层"
+        C1["DataTable<br/>get_rows(), filter(), sort()"]
+        C2["Modal<br/>confirm(), dismiss(), get_text()"]
+        C3["DatePicker<br/>select_date(), get_value()"]
+    end
+
+    subgraph "Driver Layer 驱动层"
+        D1["Playwright / Selenium<br/>Browser, Context, Page"]
+    end
+
+    T1 --> P1
+    T1 --> P2
+    T2 --> P2
+    T2 --> P3
+    P1 --> C2
+    P2 --> C1
+    P3 --> C1
+    P3 --> C3
+    C1 --> D1
+    C2 --> D1
+    C3 --> D1
+
+    style T1 fill:#3b82f6,color:#fff
+    style T2 fill:#3b82f6,color:#fff
+    style P1 fill:#8b5cf6,color:#fff
+    style P2 fill:#8b5cf6,color:#fff
+    style P3 fill:#8b5cf6,color:#fff
+    style C1 fill:#10b981,color:#fff
+    style C2 fill:#10b981,color:#fff
+    style C3 fill:#10b981,color:#fff</code></pre>
+
+<h3>基础 POM 示例</h3>
 <div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">pages/login_page.py</span></div>
 <pre><code>class LoginPage:
     '''Elements centralized - change once, fix everywhere'''
@@ -33,3 +81,55 @@ class DashboardPage:
 # Test becomes extremely clean
 def test_login(page):
     LoginPage(page).goto().login("admin", "Test@123").assert_loaded()</code></pre></div>
+
+<h3>带组件化的 POM</h3>
+<div class="cw"><div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">复用组件示例</span></div>
+<pre><code># 组件：可复用的表格操作
+class DataTable:
+    def __init__(self, container):
+        self.c = container
+
+    def rows(self):
+        return self.c.locator("tbody tr").all()
+
+    def get_row_by_text(self, text):
+        return self.c.locator("tbody tr", has_text=text)
+
+    def sort_by_column(self, name):
+        self.c.locator("th", has_text=name).click()
+
+    def assert_row_count(self, n):
+        expect(self.c.locator("tbody tr")).to_have_count(n)
+
+
+# 页面：使用 DataTable 组件
+class UserListPage:
+    def __init__(self, page):
+        self.p = page
+        self.table = DataTable(page.locator(".user-table"))
+
+    def goto(self):
+        self.p.goto("/admin/users")
+        self.table.assert_row_count(10)
+        return self</code></pre>
+</div>
+
+<div class="best-practice">
+<div class="bp-title">💡 POM 设计原则</div>
+<ul>
+<li><strong>方法返回 Page Object：</strong>每个动作方法返回它导航到的下一个页面对象（如 <code>login()</code> 返回 <code>DashboardPage</code>），让测试代码形成流式调用链。</li>
+<li><strong>不暴露 locator：</strong>所有 locator 设为 private/前缀下划线。测试代码只调用业务方法，不直接操作 <code>page.locator()</code>。</li>
+<li><strong>组件化复用：</strong>DataTable、Modal、DatePicker 等跨页面复用组件独立封装，页面通过组合引用。</li>
+<li><strong>断言内聚：</strong>将 <code>expect()</code> 调用放在 Page Object 的 assert_* 方法中，而非散落在测试函数里。</li>
+</ul>
+</div>
+
+<div class="pitfall">
+<div class="pf-title">⚠️ 避坑指南：元素定位的脆弱性</div>
+<ul>
+<li><strong>避免 CSS class 定位：</strong>前端框架生成的 class 名（如 <code>css-1abc2de</code>）在每次构建时可能变化。优先使用 <code>getByRole()</code>、<code>getByLabel()</code>、<code>getByTestId()</code>。</li>
+<li><strong>XPath 性能陷阱：</strong>复杂的绝对 XPath 在大 DOM 树中定位极慢。Playwright 的 <code>text=</code> 和 <code>has-text=</code> 比 XPath 快 10-100 倍。</li>
+<li><strong>隐式等待 vs 自动等待：</strong>不要使用 <code>time.sleep()</code>。Playwright 的自动等待机制（actionability checks）已覆盖绝大多数场景。</li>
+<li><strong>页面对象膨胀：</strong>一个 Page Object 超过 200 行时，意味着它承载了太多职责。按功能区域或组件拆分。</li>
+</ul>
+</div>

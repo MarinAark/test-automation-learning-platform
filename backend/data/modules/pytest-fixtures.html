@@ -33,3 +33,62 @@ def make_user(api):
 def test_roles(make_user):
     admin = make_user(role="admin")
     viewer = make_user(role="viewer")</code></pre></div>
+
+<h3>Fixture 生命周期与作用域</h3>
+<p>理解 pytest fixture 的生命周期对于避免测试间数据污染和优化执行效率至关重要。下图展示了一个完整测试会话中不同 scope 的 fixture 何时被创建和销毁。</p>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant Session as pytest Session
+    participant Module as conftest.py
+    participant Class as Test Class
+    participant Test as Test Function
+
+    Note over Session: scope="session"
+    Session->>Module: setup (once)
+    Module-->>Session: session fixture ready
+
+    Note over Module: scope="module"
+    Module->>Class: setup (per module)
+    Class-->>Module: module fixture ready
+
+    Note over Class: scope="class"
+    Class->>Test: setup (per class)
+    Test-->>Class: class fixture ready
+
+    Note over Test: scope="function" (default)
+    Test->>Test: setup before each test
+    Test->>Test: test body runs
+    Test->>Test: yield pause
+    Test->>Test: teardown after test
+
+    Test-->>Class: function fixture cleaned
+    Class-->>Module: class fixture cleaned
+    Module-->>Session: module fixture cleaned
+    Session-->>Session: session fixture cleaned</code></pre>
+
+<h3>Scope 参数决策树</h3>
+<div class="cards">
+<div class="card"><h4>function（默认）</h4><p>每次测试函数都重建 fixture。适用于有状态/可变数据。</p><p style="color:var(--green);margin-top:4px;">用例：临时数据库记录、浏览器 page</p></div>
+<div class="card"><h4>class</h4><p>同一 TestCase 类内所有方法共享。少用，因为 pytest 更鼓励函数式风格。</p></div>
+<div class="card"><h4>module</h4><p>同一个 .py 文件内所有测试共享一次 setup。</p><p style="color:var(--green);margin-top:4px;">用例：加载 JSON 配置文件、数据库迁移</p></div>
+<div class="card"><h4>session</h4><p>整个测试运行期间只执行一次 setup/teardown。</p><p style="color:var(--green);margin-top:4px;">用例：启动本地服务器、全局 HTTP Client</p></div>
+</div>
+
+<div class="best-practice">
+<div class="bp-title">💡 Fixture 工厂模式 vs 参数化 — 选择指南</div>
+<ul>
+<li><strong>工厂模式（factory as fixture）：</strong>当测试内部需要<em>动态创建多个不同对象</em>时使用。例如一个测试需要同时创建 admin 和 viewer 两种用户。</li>
+<li><strong>pytest.mark.parametrize：</strong>当你希望对<em>同一个测试逻辑</em>用多组数据进行<em>独立运行</em>时使用。每组数据是一次独立的测试执行，失败不会互相影响。</li>
+<li><strong>pytest_generate_tests：</strong>当参数化数据需要根据命令行参数、配置文件或外部服务动态生成时使用。比 parametrize 更灵活但更难调试。</li>
+<li><strong>判断标准：</strong>如果你在想"这个 fixture 应该是什么 scope"，先画数据依赖图再看 scope。</li>
+</ul>
+</div>
+
+<div class="pitfall">
+<div class="pf-title">⚠️ 避坑指南：Fixture Scope 混用的隐性 Bug</div>
+<ul>
+<li><strong>session 依赖 function：</strong>如果一个 session-scoped fixture 依赖了一个 function-scoped fixture，pytest 会报错。这是因为 session 只创建一次但 function 每个测试都要重建，逻辑矛盾。</li>
+<li><strong>module 间数据泄漏：</strong>若 session-fixture 修改了共享状态（如全局配置 dict），所有后续 module 都会受影响，排查极其困难。解决方案：fixture 返回只读对象或 deep copy。</li>
+<li><strong>yield 后的异常：</strong>teardown 代码（yield 之后）中的异常会被 pytest 捕获并报告，但不会阻止其他 teardown 继续执行。teardown 失败可能导致资源泄漏（文件句柄、数据库连接未关闭）。</li>
+<li><strong>conftest 覆盖规则：</strong>子目录的 conftest.py 会覆盖父目录的同名 fixture，但仅在当前作用域。如果 fixture 链跨越多个目录层级，覆盖顺序可能出乎意料。</li>
+</ul>
+</div>

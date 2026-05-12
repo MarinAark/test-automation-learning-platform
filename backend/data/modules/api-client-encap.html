@@ -71,3 +71,56 @@ class APIClient:
         return self._request("DELETE", p, **kw)
     def close(self):
         self.session.close()</code></pre></div>
+
+<h3>实战场景：重试策略深度解析</h3>
+<p>接口测试中，重试不是"无脑加 3 次"就解决了。不同的故障模式需要不同的重试策略。</p>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">精细化重试控制</span></div>
+<pre><code>from urllib3.util.retry import Retry
+
+# 错误配置：所有异常重试（包括 4xx）
+bad = Retry(total=5, status_forcelist=[400, 401, 500])
+# 400/401 是客户端错误，重试只会浪费时间和资源
+
+# 正确配置：仅重试可恢复的错误
+good = Retry(
+    total=3,
+    backoff_factor=0.5,         # 指数退避: 0.5s, 1s, 2s
+    status_forcelist=[429, 500, 502, 503, 504],
+    allowed_methods=["GET", "HEAD", "OPTIONS"],  # POST 慎重重试
+    raise_on_status=False,      # 不自动抛异常，由上层判断
+)
+
+# 连接级别重试 vs 读取超时
+from requests.adapters import HTTPAdapter
+adapter = HTTPAdapter(
+    max_retries=Retry(
+        total=2,
+        connect=1,  # 连接失败只重试 1 次
+        read=2,     # 读取超时重试 2 次
+        backoff_factor=0.3,
+    ),
+    pool_connections=10,
+    pool_maxsize=20,
+)</code></pre>
+</div>
+
+<div class="best-practice">
+<div class="bp-title">💡 生产级重试最佳实践</div>
+<ul>
+<li><strong>不要重试 4xx：</strong>400/401/403/404 是客户端错误，重试不会改变结果。仅重试 5xx 和 429（限流）。</li>
+<li><strong>POST/PUT/DELETE 慎重重试：</strong>非幂等请求重试可能导致重复创建资源。必须重试时确保后端实现了幂等性（如 idempotency key）。</li>
+<li><strong>指数退避 (Exponential Backoff)：</strong>避免"惊群效应" — 如果 10000 个测试同时重试且间隔相同，服务端瞬间雪崩。</li>
+<li><strong>熔断器模式：</strong>重试超过阈值后暂停一段时间，给下游恢复的机会。requests 本身不支持，需引入 tenacity 或自建。</li>
+</ul>
+</div>
+
+<div class="pitfall">
+<div class="pf-title">⚠️ 避坑指南：连接池耗尽与 Session 泄漏</div>
+<ul>
+<li><strong>连接池耗尽：</strong>每次测试 <code>requests.get()</code> 而不复用 Session 时，底层 TCP 连接处于 TIME_WAIT 状态。高并发下端口耗尽导致 <code>Cannot assign requested address</code>。解决方案：使用全局 Session + HTTPAdapter 限制连接数。</li>
+<li><strong>Session 忘记关闭：</strong>Session 持有连接池。在 fixture teardown 中必须调用 <code>session.close()</code>，否则 CI 内存持续增长导致 OOM。</li>
+<li><strong>SSL 验证全局禁用：</strong>生产级项目不应 <code>verify=False</code> + <code>urllib3.disable_warnings()</code>。应在 CI 中使用内部 CA 证书或配置 <code>REQUESTS_CA_BUNDLE</code> 环境变量。</li>
+<li><strong>timeout 遗漏：</strong>requests 默认 <code>timeout=None</code>（无限等待）。一个卡死的下游会导致整个测试套件挂起。务必设置 <code>timeout=(connect_timeout, read_timeout)</code> 元组。</li>
+</ul>
+</div>

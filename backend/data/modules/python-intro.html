@@ -75,3 +75,60 @@ bugs = [{"severity": "P2"}, {"severity": "P0"}, {"severity": "P1"}]
 sorted_bugs = sorted(bugs, key=lambda b: b["severity"])
 print(sorted_bugs)</code></pre>
 </div>
+
+<h3>实战场景：处理动态 JSON 配置文件</h3>
+<p>自动化测试框架通常需要从 JSON 配置文件加载环境、超时、BaseURL 等参数。实际项目中配置可能包含嵌套结构、多环境覆盖、环境变量引用等需求。</p>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">加载并合并多层配置</span></div>
+<pre><code>import json, os
+from copy import deepcopy
+
+def load_config(env):
+    """加载配置 — 支持多环境覆盖和环境变量"""
+    # 1. 加载默认配置
+    with open("config/default.json") as f:
+        config = json.load(f)
+
+    # 2. 加载环境专用配置并深度合并
+    env_file = f"config/{env}.json"
+    if os.path.exists(env_file):
+        with open(env_file) as f:
+            env_config = json.load(f)
+        deep_merge(config, env_config)  # 递归覆盖
+
+    # 3. 替换 ${VAR} 为环境变量
+    def resolve_env(obj):
+        if isinstance(obj, dict):
+            return {k: resolve_env(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [resolve_env(v) for v in obj]
+        if isinstance(obj, str) and obj.startswith("${"):
+            return os.environ.get(obj[2:-1], obj)
+        return obj
+
+    return resolve_env(config)
+
+def deep_merge(base, override):
+    """递归合并两个字典"""
+    for k, v in override.items():
+        if k in base and isinstance(base[k], dict) and isinstance(v, dict):
+            deep_merge(base[k], v)
+        else:
+            base[k] = v
+
+# 使用
+os.environ["API_TOKEN"] = "secret-token-123"
+cfg = load_config("staging")
+print(cfg["base_url"])      # https://staging-api.example.com
+print(cfg["auth"]["token"]) # secret-token-123</code></pre>
+</div>
+
+<div class="pitfall">
+<div class="pf-title">⚠️ 避坑指南：Python 浅拷贝与深拷贝</div>
+<ul>
+<li><strong>陷阱：</strong><code>dict.copy()</code> 和 <code>list[:]</code> 只做浅拷贝。嵌套的字典/列表仍然是同一引用，修改新对象会影响原对象。</li>
+<li><strong>测试中的典型场景：</strong>从模板复制测试数据时，若使用 <code>base_data.copy()</code> 修改嵌套字段，会污染其他用例的输入数据。</li>
+<li><strong>正确做法：</strong>使用 <code>copy.deepcopy()</code> 进行完全独立的拷贝，或在 fixture 中使用工厂函数每次返回新对象。</li>
+<li><strong>排查技巧：</strong>如果多个测试用例的数据"莫名其妙"相互影响，打印 <code>id(obj)</code> 检查是否指向同一内存地址。</li>
+</ul>
+</div>

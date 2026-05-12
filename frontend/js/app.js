@@ -51,6 +51,10 @@ function toggleTheme() {
   document.documentElement.setAttribute("data-theme", next);
   localStorage.setItem("theme", next);
   updateThemeIcon(next);
+  // Re-render Mermaid with new theme if present
+  if (typeof mermaid !== "undefined" && document.querySelector(".mermaid-wrap")) {
+    renderMermaid();
+  }
 }
 
 function updateThemeIcon(theme) {
@@ -322,8 +326,11 @@ async function loadModule(moduleId) {
     addCopyButtons();
     addCodeFolding();
     injectLineNumbers();
+    renderMermaid();
     buildTOC();
     updatePrevNext();
+    renderNoteHighlights();
+    renderNotesSidebar();
   } catch (e) {
     main.innerHTML = `<div class="loading"><p>加载失败: ${e.message}</p></div>`;
   }
@@ -525,6 +532,30 @@ function escapeHTML(str) {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+// ==================== Mermaid Diagrams ====================
+async function renderMermaid() {
+  const charts = document.querySelectorAll(".mermaid, pre code.language-mermaid");
+  if (!charts.length) return;
+  if (typeof mermaid === "undefined") return;
+
+  const theme = document.documentElement.getAttribute("data-theme") === "light" ? "neutral" : "dark";
+  mermaid.initialize({ startOnLoad: false, theme, securityLevel: "loose" });
+
+  for (const el of charts) {
+    try {
+      const code = el.textContent.trim();
+      const id = "mermaid-" + Math.random().toString(36).slice(2, 8);
+      const { svg } = await mermaid.render(id, code);
+      const wrap = document.createElement("div");
+      wrap.className = "mermaid-wrap";
+      wrap.innerHTML = svg;
+      el.parentElement?.replaceWith?.(wrap) || el.replaceWith(wrap);
+    } catch (e) {
+      console.error("Mermaid render error:", e);
+    }
+  }
+}
+
 // ==================== Fullscreen Code ====================
 function openFullscreenCode(code, fname) {
   document.getElementById("fsFname").textContent = fname || "代码";
@@ -551,6 +582,183 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), 2000);
+}
+
+// ==================== Export ====================
+function toggleExportMenu() {
+  document.getElementById("exportMenu").classList.toggle("show");
+}
+document.addEventListener("click", (e) => {
+  const menu = document.getElementById("exportMenu");
+  const btn = document.getElementById("exportBtn");
+  if (menu && btn && !btn.contains(e.target) && !menu.contains(e.target)) {
+    menu.classList.remove("show");
+  }
+});
+
+function exportPDF() {
+  document.getElementById("exportMenu").classList.remove("show");
+  window.print();
+}
+
+function exportMarkdown() {
+  document.getElementById("exportMenu").classList.remove("show");
+  if (!currentModuleId) return;
+  const main = document.getElementById("contentMain");
+  const clone = main.cloneNode(true);
+  // Remove non-content elements from clone
+  clone.querySelectorAll(".copy-btn,.code-fold,.fullscreen-btn,.complete-btn").forEach(el => el.remove());
+  // Convert code blocks to markdown fenced blocks
+  clone.querySelectorAll(".cw").forEach(cw => {
+    const fname = cw.querySelector(".fname")?.textContent || "";
+    const code = cw.querySelector("pre code")?.textContent || "";
+    const lang = fname.endsWith(".py") ? "python" : fname.endsWith(".yml") || fname.endsWith(".yaml") ? "yaml" : "";
+    const md = `\`\`\`${lang}\n${code}\n\`\`\``;
+    cw.replaceWith(document.createRange().createContextualFragment(`<pre>${md}</pre>`));
+  });
+  // Build markdown
+  let md = `# ${findModuleById(currentModuleId)?.title || ""}\n\n`;
+  md += clone.innerText;
+  // Download
+  const blob = new Blob([md], { type: "text/markdown" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `${currentModuleId}.md`; a.click();
+  URL.revokeObjectURL(url);
+  showToast("📝 Markdown 已下载");
+}
+
+// ==================== Notes ====================
+let notesStore = JSON.parse(localStorage.getItem("learner_notes") || "{}");
+let currentNoteId = null;
+
+function handleTextSelection() {
+  const sel = window.getSelection();
+  const text = sel?.toString().trim();
+  if (!text || text.length < 3) {
+    document.getElementById("selTip").classList.remove("show");
+    return;
+  }
+  const range = sel.getRangeAt(0);
+  const rect = range.getBoundingClientRect();
+  const tip = document.getElementById("selTip");
+  tip.style.top = (rect.top + window.scrollY - 32) + "px";
+  tip.style.left = (rect.left + rect.width / 2) + "px";
+  tip.style.transform = "translateX(-50%)";
+  tip.classList.add("show");
+  tip.dataset.quote = text;
+}
+
+document.addEventListener("mouseup", (e) => {
+  if (e.target.closest(".sel-tip,.note-popup-mask,.note-popup")) return;
+  setTimeout(handleTextSelection, 10);
+});
+
+function openNotePopup() {
+  const tip = document.getElementById("selTip");
+  const quote = tip.dataset.quote || "";
+  tip.classList.remove("show");
+  document.getElementById("npQuote").textContent = quote;
+  document.getElementById("npText").value = "";
+  document.getElementById("notePopupMask").classList.add("show");
+  // Check for existing note with same quote
+  const modNotes = notesStore[currentModuleId] || [];
+  const existing = modNotes.find(n => n.quote === quote);
+  if (existing) {
+    document.getElementById("npText").value = existing.text;
+    currentNoteId = existing.id;
+  } else {
+    currentNoteId = null;
+  }
+}
+
+function closeNotePopup() {
+  document.getElementById("notePopupMask").classList.remove("show");
+}
+
+function saveNote() {
+  const quote = document.getElementById("npQuote").textContent;
+  const text = document.getElementById("npText").value.trim();
+  if (!text || !quote) return;
+  if (!notesStore[currentModuleId]) notesStore[currentModuleId] = [];
+  if (currentNoteId) {
+    const n = notesStore[currentModuleId].find(n => n.id === currentNoteId);
+    if (n) n.text = text;
+  } else {
+    notesStore[currentModuleId].push({
+      id: Date.now().toString(36),
+      quote, text,
+      timestamp: new Date().toISOString(),
+    });
+  }
+  localStorage.setItem("learner_notes", JSON.stringify(notesStore));
+  closeNotePopup();
+  renderNoteHighlights();
+  renderNotesSidebar();
+  showToast("📝 笔记已保存");
+}
+
+function deleteNote() {
+  if (!currentNoteId || !notesStore[currentModuleId]) return;
+  notesStore[currentModuleId] = notesStore[currentModuleId].filter(n => n.id !== currentNoteId);
+  localStorage.setItem("learner_notes", JSON.stringify(notesStore));
+  closeNotePopup();
+  renderNoteHighlights();
+  renderNotesSidebar();
+  showToast("🗑 笔记已删除");
+}
+
+function renderNoteHighlights() {
+  // Remove old highlights
+  document.querySelectorAll(".note-highlight").forEach(el => {
+    const parent = el.parentNode;
+    parent.replaceChild(document.createTextNode(el.textContent), el);
+    parent.normalize();
+  });
+  const modNotes = notesStore[currentModuleId] || [];
+  if (!modNotes.length) return;
+  const main = document.getElementById("contentMain");
+  const walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  while (walker.nextNode()) {
+    if (walker.currentNode.parentElement.closest(".cw,script,style,.np-quote")) continue;
+    textNodes.push(walker.currentNode);
+  }
+  for (const note of modNotes) {
+    for (const node of textNodes) {
+      const idx = node.textContent.indexOf(note.quote);
+      if (idx !== -1) {
+        const range = document.createRange();
+        range.setStart(node, idx);
+        range.setEnd(node, idx + note.quote.length);
+        const span = document.createElement("span");
+        span.className = "note-highlight";
+        span.title = note.text;
+        range.surroundContents(span);
+        break;
+      }
+    }
+  }
+}
+
+function renderNotesSidebar() {
+  let container = document.getElementById("notesSection");
+  if (!container) {
+    const sidebar = document.getElementById("sidebar");
+    container = document.createElement("div");
+    container.className = "notes-section";
+    container.id = "notesSection";
+    sidebar.appendChild(container);
+  }
+  const allNotes = Object.entries(notesStore).filter(([, notes]) => notes.length > 0);
+  if (!allNotes.length) { container.innerHTML = ""; return; }
+  container.innerHTML = `<div class="ns-title">📝 我的笔记 (${allNotes.reduce((s, [,n]) => s + n.length, 0)})</div>`;
+  allNotes.forEach(([modId, notes]) => {
+    const mod = findModuleById(modId);
+    notes.forEach(n => {
+      container.innerHTML += `<div class="ns-item" onclick="loadModule('${modId}')">${mod?.title || modId}: "${n.quote.slice(0, 30)}..."</div>`;
+    });
+  });
 }
 
 // ==================== Keyboard Shortcuts ====================
