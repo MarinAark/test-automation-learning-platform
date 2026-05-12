@@ -19,7 +19,7 @@
   <span class="breadcrumb" id="breadcrumb">首页</span>
   <button class="icon-btn" id="searchToggle" title="搜索模块" onclick="document.getElementById('searchInput')?.focus()">🔍</button>
   <button class="icon-btn" id="themeToggle" title="切换主题" onclick="toggleTheme()">🌙</button>
-  <a class="icon-btn" href="https://github.com/MarinAark/test-automation-learning-platform" target="_blank" title="GitHub 仓库" style="text-decoration:none;">☆</a>
+  <button class="icon-btn" id="bookmarkBtn" data-tooltip="收藏此文章" onclick="toggleBookmark()">☆</button>
   <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
   <span class="progress-text" id="progressText">0%</span>
 </div>
@@ -30,7 +30,12 @@
   </aside>
 
   <main class="content" id="content">
-    <div class="loading"><div class="spinner"></div><p>正在加载学习内容...</p></div>
+    <div class="content-wrapper">
+      <div class="content-main" id="contentMain">
+        <div class="loading"><div class="spinner"></div><p>正在加载学习内容...</p></div>
+      </div>
+      <nav class="toc-sidebar" id="tocSidebar" style="display:none;"></nav>
+    </div>
   </main>
 </div>
 
