@@ -17,12 +17,34 @@ let totalModules = 0;
 
 // ==================== Init ====================
 async function init() {
+  initTheme();
   await Promise.all([loadChapters(), loadProgress()]);
   renderSidebar();
   // 默认加载第一个模块
   if (chapters.length > 0 && chapters[0].modules.length > 0) {
     loadModule(chapters[0].modules[0].id);
   }
+}
+
+// ==================== Theme ====================
+function initTheme() {
+  const saved = localStorage.getItem("theme");
+  const theme = saved || (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  document.documentElement.setAttribute("data-theme", theme);
+  updateThemeIcon(theme);
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme");
+  const next = current === "light" ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", next);
+  localStorage.setItem("theme", next);
+  updateThemeIcon(next);
+}
+
+function updateThemeIcon(theme) {
+  const btn = document.getElementById("themeToggle");
+  if (btn) btn.textContent = theme === "light" ? "☀️" : "🌙";
 }
 
 // ==================== API ====================
@@ -121,6 +143,7 @@ function handleSearch(q) {
 // ==================== Content Loading ====================
 async function loadModule(moduleId) {
   currentModuleId = moduleId;
+  updateBreadcrumb(moduleId);
   const content = document.getElementById("content");
   content.innerHTML = '<div class="loading"><div class="spinner"></div><p>加载中...</p></div>';
 
@@ -162,6 +185,18 @@ async function loadModule(moduleId) {
     // 模块内容
     html += m.content_html;
 
+    // 资源链接
+    if (m.resources && m.resources.length > 0) {
+      html += '<div class="res-section"><h4>📺 视频与资源</h4><div class="res-list">';
+      m.resources.forEach(r => {
+        const icon = r.type === 'video' ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>' :
+                     r.type === 'article' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>' :
+                     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
+        html += `<a class="res-link" href="${r.url}" target="_blank" rel="noopener">${icon} ${r.title}</a>`;
+      });
+      html += '</div></div>';
+    }
+
     // 完成按钮
     html += `<button class="complete-btn ${completedSet.has(moduleId) ? 'completed' : ''}"
                     id="completeBtn" onclick="toggleComplete()">
@@ -182,6 +217,23 @@ function findModuleById(id) {
     }
   }
   return null;
+}
+
+function findChapterByModuleId(id) {
+  for (const ch of chapters) {
+    for (const m of ch.modules) {
+      if (m.id === id) return ch;
+    }
+  }
+  return null;
+}
+
+function updateBreadcrumb(moduleId) {
+  const ch = findChapterByModuleId(moduleId);
+  const m = findModuleById(moduleId);
+  const bc = document.getElementById("breadcrumb");
+  if (ch && m) bc.textContent = `${ch.title} / ${m.title}`;
+  else if (m) bc.textContent = m.title;
 }
 
 function updateCompleteButton() {

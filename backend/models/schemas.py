@@ -10,6 +10,7 @@ class ModuleInfo(BaseModel):
     leads_to: list[str] = []
     tags: list[str] = []
     content_html: str
+    resources: list[dict] = []
 
 
 class ModuleListItem(BaseModel):

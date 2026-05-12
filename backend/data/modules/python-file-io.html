@@ -1,0 +1,118 @@
+<h3>文件操作与数据处理</h3>
+<p>掌握测试数据文件的读写，是数据驱动测试的基础。</p>
+
+<h3>pathlib 路径操作</h3>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">路径操作</span></div>
+<pre><code>from pathlib import Path
+
+# 项目目录结构
+BASE_DIR = Path(__file__).parent.parent  # 项目根
+TESTDATA_DIR = BASE_DIR / "testdata"
+CONFIG_DIR = BASE_DIR / "config"
+SCREENSHOT_DIR = BASE_DIR / "screenshots"
+
+# 创建目录（不存在则创建）
+SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
+
+# 遍历文件
+for f in TESTDATA_DIR.glob("*.json"):
+    print(f"测试数据: {f.name}")
+
+# 读取文件
+config_path = CONFIG_DIR / "settings.yaml"
+if config_path.exists():
+    content = config_path.read_text(encoding="utf-8")
+    print(f"配置大小: {config_path.stat().st_size} bytes")
+
+# 路径拼接和解析
+report = BASE_DIR / "reports" / "2024" / "report.html"
+print(report.suffix)  # .html
+print(report.stem)    # report</code></pre>
+</div>
+
+<h3>JSON 文件处理</h3>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">JSON 操作</span></div>
+<pre><code>import json
+
+# 读取测试用例
+def load_test_cases(filepath):
+    with open(filepath, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+# 写入测试结果
+def save_results(filepath, results):
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(results, f, ensure_ascii=False, indent=2)
+
+# testdata/login_cases.json
+'''
+[
+  {"name": "正常登录", "username": "admin", "password": "123456", "expected": 200},
+  {"name": "密码错误", "username": "admin", "password": "wrong", "expected": 401},
+  {"name": "用户名为空", "username": "", "password": "123456", "expected": 422}
+]
+'''
+
+cases = load_test_cases("testdata/login_cases.json")
+for case in cases:
+    print(f"执行: {case['name']}")
+    # run_test(case)</code></pre>
+</div>
+
+<h3>CSV 数据处理</h3>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">CSV 操作</span></div>
+<pre><code>import csv
+
+# 读取 CSV 测试数据
+def load_csv_cases(filepath):
+    with open(filepath, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        return list(reader)
+
+# 写入 CSV 报告
+def write_csv_report(filepath, results):
+    with open(filepath, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=["case", "status", "duration"])
+        writer.writeheader()
+        writer.writerows(results)
+
+# 使用
+results = [
+    {"case": "登录", "status": "PASS", "duration": 0.5},
+    {"case": "注册", "status": "PASS", "duration": 0.3},
+    {"case": "下单", "status": "FAIL", "duration": 2.1},
+]
+write_csv_report("test_report.csv", results)</code></pre>
+</div>
+
+<h3>YAML 配置</h3>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">YAML 配置</span></div>
+<pre><code># 需要 pip install pyyaml
+import yaml
+
+# config/settings.yaml 内容:
+'''
+staging:
+  base_url: https://staging.example.com
+  timeout: 30
+  retry: 2
+production:
+  base_url: https://api.example.com
+  timeout: 15
+  retry: 0
+'''
+
+def load_config(env="staging"):
+    """加载多环境配置"""
+    with open("config/settings.yaml", "r", encoding="utf-8") as f:
+        all_config = yaml.safe_load(f)
+    return all_config.get(env, {})
+
+config = load_config("staging")
+print(f"测试环境: {config['base_url']}")
+print(f"超时设置: {config['timeout']}s")</code></pre>
+</div>

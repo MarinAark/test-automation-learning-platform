@@ -29,6 +29,7 @@ async def get_module(module_id: str):
         "tags": module.get("tags", []),
         "chapter": module["chapter"],
         "content_html": module["content_html"],
+        "resources": module.get("resources", []),
     }
 
 

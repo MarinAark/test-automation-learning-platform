@@ -1,11 +1,11 @@
 .PHONY: install run test test-api test-ui lint clean
 
 install:
-	pip install -r backend/requirements.txt
-	playwright install --with-deps chromium
+	pip3 install -r backend/requirements.txt
+	python3 -m playwright install --with-deps chromium
 
 run:
-	cd backend && uvicorn app:app --reload --host 0.0.0.0 --port 8888
+	python3 -m uvicorn backend.app:app --reload --host 0.0.0.0 --port 8888
 
 test:
 	pytest tests/ -v -n auto --reruns 2 --alluredir=allure-results

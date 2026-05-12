@@ -1,0 +1,104 @@
+<h3>面向对象编程</h3>
+<p>用 OOP 组织测试框架，构建可维护的 Page Object 和 API Client。</p>
+
+<h3>类与对象</h3>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">基础类定义</span></div>
+<pre><code>class TestCase:
+    """测试用例基类"""
+
+    def __init__(self, name, priority="P1"):
+        self.name = name
+        self.priority = priority
+        self._result = None  # 私有属性
+
+    def run(self):
+        """执行测试 — 子类覆盖此方法"""
+        raise NotImplementedError("子类必须实现 run()")
+
+    @property
+    def result(self):
+        return self._result or "未执行"
+
+    @result.setter
+    def result(self, value):
+        allowed = {"通过", "失败", "跳过"}
+        if value not in allowed:
+            raise ValueError(f"结果必须是 {allowed}")
+        self._result = value
+
+    def __repr__(self):
+        return f"TestCase(name={self.name!r}, priority={self.priority!r})"
+
+# 使用
+tc = TestCase("登录用例", "P0")
+print(tc)  # TestCase(name='登录用例', priority='P0')
+tc.result = "通过"
+print(tc.result)  # 通过</code></pre>
+</div>
+
+<h3>继承与多态</h3>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">继承示例</span></div>
+<pre><code>class APITestCase(TestCase):
+    """接口测试用例"""
+    def __init__(self, name, endpoint, method="GET", priority="P1"):
+        super().__init__(name, priority)
+        self.endpoint = endpoint
+        self.method = method
+
+    def run(self):
+        print(f"发送 {self.method} {self.endpoint}")
+        # 实际请求逻辑...
+        self.result = "通过"
+
+class UITestCase(TestCase):
+    """UI 测试用例"""
+    def __init__(self, name, page_url, priority="P1"):
+        super().__init__(name, priority)
+        self.page_url = page_url
+
+    def run(self):
+        print(f"打开页面 {self.page_url}")
+        # Playwright 操作...
+        self.result = "通过"
+
+# 多态 — 统一调用
+suite = [
+    APITestCase("获取用户列表", "/api/users"),
+    UITestCase("登录页面验证", "/login"),
+]
+for case in suite:
+    case.run()
+    print(f"  {case.name}: {case.result}")</code></pre>
+</div>
+
+<h3>魔术方法</h3>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">魔术方法</span></div>
+<pre><code>class Assertion:
+    """可组合的断言"""
+    def __init__(self, actual):
+        self.actual = actual
+
+    def __eq__(self, expected):
+        assert self.actual == expected, \
+            f"期望 {expected!r}，实际 {self.actual!r}"
+        return True
+
+    def __gt__(self, other):
+        assert self.actual > other, \
+            f"期望 > {other}，实际 {self.actual}"
+        return True
+
+    def __contains__(self, item):
+        assert item in self.actual, \
+            f"期望包含 {item!r}，实际 {self.actual!r}"
+        return True
+
+# 使用
+resp = {"status": "ok", "code": 200}
+Assertion(resp["status"]) == "ok"
+Assertion(resp["code"]) > 100
+# Assertion(resp["status"]) == "error"  # 会抛出 AssertionError</code></pre>
+</div>

@@ -1,0 +1,108 @@
+<h3>异常处理与调试</h3>
+<p>稳健的错误处理是自动化测试的关键 — 失败时必须给出清晰的诊断。</p>
+
+<h3>try/except/finally</h3>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">异常处理</span></div>
+<pre><code>import requests
+
+def safe_api_call(url, timeout=10):
+    """带完整异常处理的 API 调用"""
+    try:
+        resp = requests.get(url, timeout=timeout)
+        resp.raise_for_status()  # 4xx/5xx 抛出 HTTPError
+        return resp.json()
+    except requests.Timeout:
+        print(f"请求超时: {url}")
+        return None
+    except requests.HTTPError as e:
+        print(f"HTTP 错误: {e.response.status_code}")
+        return None
+    except requests.ConnectionError:
+        print(f"连接失败: {url}")
+        return None
+    except Exception as e:
+        print(f"未知错误: {type(e).__name__}: {e}")
+        return None
+    finally:
+        print(f"请求完成: {url}")  # 无论如何都执行</code></pre>
+</div>
+
+<h3>自定义异常</h3>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">自定义异常</span></div>
+<pre><code>class TestFailureError(AssertionError):
+    """测试失败异常 — 携带上下文信息"""
+    def __init__(self, message, case_name=None, screenshot=None):
+        super().__init__(message)
+        self.case_name = case_name
+        self.screenshot = screenshot
+
+class ConfigError(Exception):
+    """配置错误"""
+    pass
+
+# 使用
+def assert_element_visible(page, selector, case_name):
+    element = page.locator(selector)
+    if not element.is_visible():
+        screenshot = page.screenshot()
+        raise TestFailureError(
+            f"元素不可见: {selector}",
+            case_name=case_name,
+            screenshot=screenshot,
+        )</code></pre>
+</div>
+
+<h3>日志记录</h3>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">logging 配置</span></div>
+<pre><code>import logging
+
+# 基础配置
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[
+        logging.FileHandler("test.log", encoding="utf-8"),
+        logging.StreamHandler(),
+    ]
+)
+
+logger = logging.getLogger(__name__)
+
+# 不同级别
+logger.debug("调试信息 — 变量值 detail={}".format({"a": 1}))
+logger.info("测试开始 — 用例: 登录功能")
+logger.warning("警告 — 响应时间 3.2s 超过阈值 2s")
+logger.error("错误 — 接口返回 500")
+logger.critical("严重 — 数据库连接丢失")
+
+# 在异常处理中使用
+try:
+    response = requests.get("https://api.example.com/data")
+    response.raise_for_status()
+except requests.RequestException as e:
+    logger.exception("API 调用失败")  # 自动记录 traceback</code></pre>
+</div>
+
+<h3>调试技巧</h3>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">调试方法</span></div>
+<pre><code># 1. pdb 断点调试
+import pdb; pdb.set_trace()  # 程序在此暂停
+
+# 2. breakpoint() — Python 3.7+
+for i, case in enumerate(test_cases):
+    if case["status"] == "error":
+        breakpoint()  # 进入交互式调试
+    run_case(case)
+
+# 3. rich / pprint 美化输出
+from pprint import pprint
+pprint(response_data, indent=2, width=80)
+
+# 4. 行内断言调试
+result = api.create_user(name="test")
+assert "id" in result, f"创建用户失败: {result}"</code></pre>
+</div>

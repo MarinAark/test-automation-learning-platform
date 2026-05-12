@@ -18,6 +18,79 @@ def load_all_modules():
     """注册全部学习模块"""
 
     # ================================================================
+    # 第〇章：Python 基础
+    # ================================================================
+    ModuleData.register("ch0", "Python 基础", "🐍", [
+        {
+            "id": "python-intro",
+            "title": "语言基础",
+            "description": "变量、数据类型、控制流、列表推导式",
+            "prerequisites": [],
+            "leads_to": ["python-functions", "python-oop"],
+            "tags": ["Python", "基础", "语法"],
+            "content_html": _html("python-intro"),
+            "resources": [
+                {"title": "B站搜索：Python零基础入门", "url": "https://search.bilibili.com/all?keyword=Python零基础入门教程", "type": "video"},
+                {"title": "Python官方教程（中文）", "url": "https://docs.python.org/zh-cn/3/tutorial/", "type": "article"},
+            ],
+        },
+        {
+            "id": "python-functions",
+            "title": "函数与装饰器",
+            "description": "函数定义、lambda、装饰器、生成器",
+            "prerequisites": ["python-intro"],
+            "leads_to": ["python-oop", "pytest-basics"],
+            "tags": ["函数", "装饰器", "lambda"],
+            "content_html": _html("python-functions"),
+            "resources": [
+                {"title": "B站搜索：Python装饰器详解", "url": "https://search.bilibili.com/all?keyword=Python装饰器详解", "type": "video"},
+            ],
+        },
+        {
+            "id": "python-oop",
+            "title": "面向对象编程",
+            "description": "类与对象、继承、多态、魔术方法",
+            "prerequisites": ["python-functions"],
+            "leads_to": ["python-modules", "api-client-encap"],
+            "tags": ["OOP", "类", "继承"],
+            "content_html": _html("python-oop"),
+            "resources": [
+                {"title": "B站搜索：Python面向对象编程", "url": "https://search.bilibili.com/all?keyword=Python面向对象编程OOP", "type": "video"},
+            ],
+        },
+        {
+            "id": "python-modules",
+            "title": "模块与包管理",
+            "description": "导入系统、包结构、虚拟环境详解",
+            "prerequisites": ["python-oop"],
+            "leads_to": ["env-setup"],
+            "tags": ["模块", "包", "venv"],
+            "content_html": _html("python-modules"),
+        },
+        {
+            "id": "python-exceptions",
+            "title": "异常处理与日志",
+            "description": "try/except、自定义异常、logging 配置",
+            "prerequisites": ["python-functions"],
+            "leads_to": ["api-client-encap"],
+            "tags": ["异常", "日志", "调试"],
+            "content_html": _html("python-exceptions"),
+        },
+        {
+            "id": "python-file-io",
+            "title": "文件与数据处理",
+            "description": "pathlib、JSON/CSV/YAML 读写",
+            "prerequisites": ["python-intro"],
+            "leads_to": ["api-data-driven"],
+            "tags": ["文件", "JSON", "CSV"],
+            "content_html": _html("python-file-io"),
+            "resources": [
+                {"title": "B站搜索：Python文件处理JSON", "url": "https://search.bilibili.com/all?keyword=Python+JSON数据驱动测试", "type": "video"},
+            ],
+        },
+    ])
+
+    # ================================================================
     # 第一章：路线图与基础
     # ================================================================
     ModuleData.register("ch1", "路线图与基础", "📋", [
@@ -29,6 +102,10 @@ def load_all_modules():
             "leads_to": ["env-setup", "pytest-basics"],
             "tags": ["路线图", "职业规划"],
             "content_html": _html("roadmap"),
+            "resources": [
+                {"title": "B站搜索：测试开发学习路线", "url": "https://search.bilibili.com/all?keyword=测试开发学习路线", "type": "video"},
+                {"title": "B站搜索：SDET技能树", "url": "https://search.bilibili.com/all?keyword=SDET自动化测试", "type": "video"},
+            ],
         },
         {
             "id": "skill-matrix",
@@ -47,6 +124,10 @@ def load_all_modules():
             "leads_to": ["api-client-encap", "pytest-basics"],
             "tags": ["环境", "pip", "venv"],
             "content_html": _html("env-setup"),
+            "resources": [
+                {"title": "B站搜索：Python虚拟环境配置", "url": "https://search.bilibili.com/all?keyword=Python虚拟环境venv配置", "type": "video"},
+                {"title": "Python官方文档：venv", "url": "https://docs.python.org/zh-cn/3/library/venv.html", "type": "article"},
+            ],
         },
         {
             "id": "pytest-basics",
@@ -80,6 +161,10 @@ def load_all_modules():
             "leads_to": ["api-auth", "api-business-layer"],
             "tags": ["requests", "封装", "HTTP Client"],
             "content_html": _html("api-client-encap"),
+            "resources": [
+                {"title": "B站搜索：requests封装测试框架", "url": "https://search.bilibili.com/all?keyword=requests接口测试封装", "type": "video"},
+                {"title": "requests官方文档", "url": "https://requests.readthedocs.io/", "type": "article"},
+            ],
         },
         {
             "id": "api-auth",
@@ -176,6 +261,10 @@ def load_all_modules():
             "leads_to": ["ui-pom", "ui-network"],
             "tags": ["Playwright", "核心"],
             "content_html": _html("ui-playwright-core"),
+            "resources": [
+                {"title": "B站搜索：Playwright自动化测试", "url": "https://search.bilibili.com/all?keyword=Playwright自动化测试教程", "type": "video"},
+                {"title": "Playwright官方文档", "url": "https://playwright.dev/python/docs/intro", "type": "article"},
+            ],
         },
         {
             "id": "ui-pom",
@@ -254,6 +343,10 @@ def load_all_modules():
             "leads_to": ["pytest-conftest", "pytest-param"],
             "tags": ["fixture", "进阶"],
             "content_html": _html("pytest-fixtures"),
+            "resources": [
+                {"title": "B站搜索：pytest fixture高级用法", "url": "https://search.bilibili.com/all?keyword=pytest+fixture高级用法", "type": "video"},
+                {"title": "pytest官方文档：fixtures", "url": "https://docs.pytest.org/en/stable/fixture.html", "type": "article"},
+            ],
         },
         {
             "id": "pytest-param",
@@ -305,6 +398,10 @@ def load_all_modules():
             "leads_to": ["ci-docker"],
             "tags": ["CI", "GitHub Actions"],
             "content_html": _html("ci-github"),
+            "resources": [
+                {"title": "B站搜索：GitHub Actions CI/CD", "url": "https://search.bilibili.com/all?keyword=GitHub+Actions+CI自动化测试", "type": "video"},
+                {"title": "GitHub Actions文档", "url": "https://docs.github.com/actions", "type": "article"},
+            ],
         },
         {
             "id": "ci-jenkins",

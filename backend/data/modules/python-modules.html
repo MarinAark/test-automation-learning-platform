@@ -1,0 +1,88 @@
+<h3>模块与包管理</h3>
+<p>理解 Python 的导入系统和项目组织结构，为搭建测试框架做准备。</p>
+
+<h3>模块导入</h3>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">导入方式</span></div>
+<pre><code># 1. import 模块
+import pytest
+pytest.main(["-v"])
+
+# 2. from ... import
+from pathlib import Path
+config_dir = Path("config")
+
+# 3. import ... as 别名
+import pandas as pd
+import numpy as np
+
+# 4. 相对导入（包内部使用）
+from .core.client import APIClient       # 同目录
+from ..utils.logger import get_logger    # 父目录</code></pre>
+</div>
+
+<h3>包结构</h3>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">测试框架包结构</span></div>
+<pre><code>test_framework/           # 包根目录
+├── __init__.py            # 标识为包
+├── core/
+│   ├── __init__.py
+│   ├── api_client.py      # class APIClient
+│   └── auth.py            # class AuthManager
+├── apis/
+│   ├── __init__.py
+│   └── user_api.py        # class UserAPI
+└── utils/
+    ├── __init__.py
+    └── helpers.py
+
+# __init__.py 控制导出
+# core/__init__.py:
+from .api_client import APIClient
+from .auth import AuthManager
+__all__ = ["APIClient", "AuthManager"]
+
+# 现在可以简化导入
+from test_framework.core import APIClient, AuthManager</code></pre>
+</div>
+
+<h3>虚拟环境详解</h3>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">虚拟环境命令</span></div>
+<pre><code># 创建虚拟环境
+python3 -m venv venv
+
+# 激活
+source venv/bin/activate      # macOS / Linux
+venv\Scripts\activate         # Windows
+
+# 安装依赖
+pip install pytest requests playwright
+
+# 导出当前环境
+pip freeze > requirements.txt
+
+# 从文件安装
+pip install -r requirements.txt
+
+# 退出虚拟环境
+deactivate
+
+# 查看已安装的包
+pip list</code></pre>
+</div>
+
+<h3>if __name__ == "__main__"</h3>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">入口判断</span></div>
+<pre><code># utils/runner.py
+def run_tests(suite="smoke"):
+    print(f"执行 {suite} 测试套件...")
+
+if __name__ == "__main__":
+    # 直接运行 python runner.py 时执行
+    import sys
+    suite = sys.argv[1] if len(sys.argv) > 1 else "smoke"
+    run_tests(suite)</code></pre>
+</div>

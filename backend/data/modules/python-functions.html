@@ -1,0 +1,102 @@
+<h3>函数与高级特性</h3>
+<p>从基础函数定义到装饰器，构建可复用的测试工具库。</p>
+
+<h3>函数定义与参数</h3>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">函数参数</span></div>
+<pre><code>def run_test(name, env="staging", *tags, **options):
+    """执行测试用例"""
+    timeout = options.get("timeout", 30)
+    retry = options.get("retry", 0)
+    print(f"[{env}] {name} tags={tags} timeout={timeout}s retry={retry}")
+
+# 调用方式
+run_test("登录用例")
+run_test("下单用例", "production", "smoke", "p0", timeout=60, retry=2)
+
+# 解包参数
+config = {"env": "staging", "timeout": 45, "retry": 1}
+run_test("注册用例", **config)</code></pre>
+</div>
+
+<h3>Lambda 与高阶函数</h3>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">lambda 示例</span></div>
+<pre><code># 测试数据排序
+test_results = [
+    {"case": "登录", "duration": 0.5},
+    {"case": "下单", "duration": 2.1},
+    {"case": "注册", "duration": 0.3},
+]
+# 按耗时排序
+sorted_by_time = sorted(test_results, key=lambda r: r["duration"])
+# 找出耗时超过1秒的用例
+slow_cases = list(filter(lambda r: r["duration"] > 1, test_results))
+
+print(f"最慢用例: {sorted_by_time[-1]['case']}")
+print(f"慢查询: {[c['case'] for c in slow_cases]}")</code></pre>
+</div>
+
+<h3>装饰器基础</h3>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">装饰器</span></div>
+<pre><code>import time
+from functools import wraps
+
+def timeit(func):
+    """计时装饰器 — 自动记录函数执行时间"""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        elapsed = time.perf_counter() - start
+        print(f"{func.__name__} 耗时: {elapsed:.3f}s")
+        return result
+    return wrapper
+
+def retry(max_attempts=3):
+    """重试装饰器 — 失败自动重试"""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    if attempt == max_attempts:
+                        raise
+                    print(f"重试 {attempt}/{max_attempts}: {e}")
+                    time.sleep(1)
+        return wrapper
+    return decorator
+
+# 使用
+@timeit
+@retry(max_attempts=2)
+def unstable_api_call():
+    # 模拟不稳定接口
+    import random
+    if random.random() > 0.5:
+        raise ConnectionError("网络超时")
+    return "success"</code></pre>
+</div>
+
+<h3>生成器</h3>
+<div class="cw">
+<div class="cbar"><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span><span class="fname">生成器</span></div>
+<pre><code># 分批读取大量测试数据（节省内存）
+def read_test_data(filename, batch_size=100):
+    """逐批读取测试数据"""
+    batch = []
+    for line in open(filename, encoding="utf-8"):
+        batch.append(line.strip())
+        if len(batch) >= batch_size:
+            yield batch
+            batch = []
+    if batch:
+        yield batch
+
+# 使用
+for batch in read_test_data("large_test_cases.csv"):
+    print(f"处理 {len(batch)} 条用例")</code></pre>
+</div>

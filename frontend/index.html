@@ -3,14 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>测试开发工程师进阶体系 — UI自动化 + 接口自动化</title>
+<title>AI测试-自动化进阶项目</title>
 <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
 
 <div class="topbar">
-  <span class="logo">🧪 测开进阶体系</span>
-  <span class="breadcrumb">UI自动化 · 接口自动化 · CI/CD</span>
+  <span class="logo">AI测试-自动化进阶项目</span>
+  <nav class="topnav">
+    <a href="#" onclick="loadModule('python-intro');return false;">Python基础</a>
+    <a href="#" onclick="loadModule('api-http-basics');return false;">接口测试</a>
+    <a href="#" onclick="loadModule('ui-overview');return false;">UI测试</a>
+    <a href="#" onclick="loadModule('ci-github');return false;">CI/CD</a>
+  </nav>
+  <span class="breadcrumb" id="breadcrumb">首页</span>
+  <button class="icon-btn" id="searchToggle" title="搜索模块" onclick="document.getElementById('searchInput')?.focus()">🔍</button>
+  <button class="icon-btn" id="themeToggle" title="切换主题" onclick="toggleTheme()">🌙</button>
+  <a class="icon-btn" href="https://github.com/MarinAark/test-automation-learning-platform" target="_blank" title="GitHub 仓库" style="text-decoration:none;">☆</a>
   <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
   <span class="progress-text" id="progressText">0%</span>
 </div>
