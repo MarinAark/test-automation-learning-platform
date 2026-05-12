@@ -512,9 +512,17 @@ function injectLineNumbers() {
     wrap.classList.add("ln");
     const code = wrap.querySelector("pre code");
     if (!code || code.querySelector("span")) return;
-    const lines = code.innerHTML.split("\n");
-    code.innerHTML = lines.map(line => `<span>${line}</span>`).join("\n");
+    const text = code.textContent || "";
+    let lines = text.split("\n");
+    // Strip leading/trailing empty lines
+    while (lines.length && lines[0].trim() === "") lines.shift();
+    while (lines.length && lines[lines.length - 1].trim() === "") lines.pop();
+    code.innerHTML = lines.map(line => `<span>${escapeHTML(line)}</span>`).join("\n");
   });
+}
+
+function escapeHTML(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 // ==================== Fullscreen Code ====================
