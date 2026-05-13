@@ -329,8 +329,7 @@ async function loadModule(moduleId) {
     renderMermaid();
     buildTOC();
     updatePrevNext();
-    renderNoteHighlights();
-    renderNotesSidebar();
+    refreshNotesUI();
   } catch (e) {
     main.innerHTML = `<div class="loading"><p>加载失败: ${e.message}</p></div>`;
   }
@@ -632,6 +631,7 @@ function exportMarkdown() {
 let notesStore = JSON.parse(localStorage.getItem("learner_notes") || "{}");
 let currentNoteId = null;
 
+// ---- Text selection → new note ----
 function handleTextSelection() {
   const sel = window.getSelection();
   const text = sel?.toString().trim();
@@ -650,32 +650,49 @@ function handleTextSelection() {
 }
 
 document.addEventListener("mouseup", (e) => {
-  if (e.target.closest(".sel-tip,.note-popup-mask,.note-popup")) return;
+  if (e.target.closest(".sel-tip,.note-popup-mask,.note-popup,.note-highlight,.notes-panel,.notes-section")) return;
   setTimeout(handleTextSelection, 10);
 });
 
+// Click on a highlighted note → open edit popup
+document.addEventListener("click", (e) => {
+  const hl = e.target.closest(".note-highlight");
+  if (!hl) return;
+  const quote = hl.textContent;
+  const modNotes = notesStore[currentModuleId] || [];
+  const note = modNotes.find(n => n.quote === quote);
+  if (note) openNotePopupByData(note.quote, note.text, note.id);
+});
+
+// ---- Popup management ----
 function openNotePopup() {
+  // Called from selTip — new note from selection
   const tip = document.getElementById("selTip");
   const quote = tip.dataset.quote || "";
   tip.classList.remove("show");
-  document.getElementById("npQuote").textContent = quote;
-  document.getElementById("npText").value = "";
-  document.getElementById("notePopupMask").classList.add("show");
-  // Check for existing note with same quote
   const modNotes = notesStore[currentModuleId] || [];
   const existing = modNotes.find(n => n.quote === quote);
-  if (existing) {
-    document.getElementById("npText").value = existing.text;
-    currentNoteId = existing.id;
-  } else {
-    currentNoteId = null;
-  }
+  openNotePopupByData(quote, existing ? existing.text : "", existing ? existing.id : null);
+}
+
+function openNotePopupByData(quote, text, noteId) {
+  document.getElementById("npQuote").textContent = quote;
+  document.getElementById("npText").value = text;
+  currentNoteId = noteId;
+  document.getElementById("notePopupMask").classList.add("show");
+}
+
+function openNoteById(noteId) {
+  if (!notesStore[currentModuleId]) return;
+  const n = notesStore[currentModuleId].find(n => n.id === noteId);
+  if (n) openNotePopupByData(n.quote, n.text, n.id);
 }
 
 function closeNotePopup() {
   document.getElementById("notePopupMask").classList.remove("show");
 }
 
+// ---- CRUD ----
 function saveNote() {
   const quote = document.getElementById("npQuote").textContent;
   const text = document.getElementById("npText").value.trim();
@@ -683,7 +700,7 @@ function saveNote() {
   if (!notesStore[currentModuleId]) notesStore[currentModuleId] = [];
   if (currentNoteId) {
     const n = notesStore[currentModuleId].find(n => n.id === currentNoteId);
-    if (n) n.text = text;
+    if (n) { n.text = text; n.timestamp = new Date().toISOString(); }
   } else {
     notesStore[currentModuleId].push({
       id: Date.now().toString(36),
@@ -691,25 +708,35 @@ function saveNote() {
       timestamp: new Date().toISOString(),
     });
   }
-  localStorage.setItem("learner_notes", JSON.stringify(notesStore));
+  persistNotes();
   closeNotePopup();
-  renderNoteHighlights();
-  renderNotesSidebar();
+  refreshNotesUI();
   showToast("📝 笔记已保存");
 }
 
-function deleteNote() {
-  if (!currentNoteId || !notesStore[currentModuleId]) return;
-  notesStore[currentModuleId] = notesStore[currentModuleId].filter(n => n.id !== currentNoteId);
-  localStorage.setItem("learner_notes", JSON.stringify(notesStore));
+function deleteNote(noteId) {
+  const id = noteId || currentNoteId;
+  if (!id || !notesStore[currentModuleId]) return;
+  notesStore[currentModuleId] = notesStore[currentModuleId].filter(n => n.id !== id);
+  if (notesStore[currentModuleId].length === 0) delete notesStore[currentModuleId];
+  persistNotes();
   closeNotePopup();
-  renderNoteHighlights();
-  renderNotesSidebar();
+  refreshNotesUI();
   showToast("🗑 笔记已删除");
 }
 
+function persistNotes() {
+  localStorage.setItem("learner_notes", JSON.stringify(notesStore));
+}
+
+function refreshNotesUI() {
+  renderNoteHighlights();
+  renderNotesPanel();
+  renderNotesSidebar();
+}
+
+// ---- Highlights in content ----
 function renderNoteHighlights() {
-  // Remove old highlights
   document.querySelectorAll(".note-highlight").forEach(el => {
     const parent = el.parentNode;
     parent.replaceChild(document.createTextNode(el.textContent), el);
@@ -718,10 +745,11 @@ function renderNoteHighlights() {
   const modNotes = notesStore[currentModuleId] || [];
   if (!modNotes.length) return;
   const main = document.getElementById("contentMain");
+  if (!main) return;
   const walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT);
   const textNodes = [];
   while (walker.nextNode()) {
-    if (walker.currentNode.parentElement.closest(".cw,script,style,.np-quote")) continue;
+    if (walker.currentNode.parentElement.closest(".cw,script,style,.np-quote,.note-highlight,.notes-panel")) continue;
     textNodes.push(walker.currentNode);
   }
   for (const note of modNotes) {
@@ -734,13 +762,55 @@ function renderNoteHighlights() {
         const span = document.createElement("span");
         span.className = "note-highlight";
         span.title = note.text;
-        range.surroundContents(span);
+        try { range.surroundContents(span); } catch(e) { /* skip overlapping highlights */ }
         break;
       }
     }
   }
 }
 
+// ---- Notes panel (in-content, current module only) ----
+function renderNotesPanel() {
+  let panel = document.getElementById("notesPanel");
+  const modNotes = notesStore[currentModuleId] || [];
+  if (!modNotes.length) {
+    if (panel) panel.remove();
+    return;
+  }
+  const main = document.getElementById("contentMain");
+  if (!main) return;
+
+  if (!panel) {
+    panel = document.createElement("div");
+    panel.className = "notes-panel open";
+    panel.id = "notesPanel";
+    // Insert after the first .sec element (title)
+    const sec = main.querySelector(".sec");
+    sec ? sec.after(panel) : main.prepend(panel);
+  }
+
+  panel.innerHTML = `
+    <div class="nph" onclick="this.parentElement.classList.toggle('open')">
+      📝 本页笔记 (${modNotes.length})
+      <span class="nph-toggle">▼</span>
+    </div>
+    <div class="npb">
+      ${modNotes.map(n => `
+        <div class="np-item" data-note-id="${n.id}">
+          <div style="flex:1;min-width:0;">
+            <div class="np-quote-mini">"${escapeHTML(n.quote.slice(0, 100))}${n.quote.length > 100 ? '...' : ''}"</div>
+            <div class="np-text-mini">${escapeHTML(n.text.slice(0, 120))}${n.text.length > 120 ? '...' : ''}</div>
+          </div>
+          <div class="np-acts">
+            <button title="编辑" onclick="event.stopPropagation();openNoteById('${n.id}')">✎</button>
+            <button class="np-del" title="删除" onclick="event.stopPropagation();deleteNote('${n.id}')">✕</button>
+          </div>
+        </div>
+      `).join("")}
+    </div>`;
+}
+
+// ---- Notes in sidebar (all modules) ----
 function renderNotesSidebar() {
   let container = document.getElementById("notesSection");
   if (!container) {
@@ -752,13 +822,31 @@ function renderNotesSidebar() {
   }
   const allNotes = Object.entries(notesStore).filter(([, notes]) => notes.length > 0);
   if (!allNotes.length) { container.innerHTML = ""; return; }
-  container.innerHTML = `<div class="ns-title">📝 我的笔记 (${allNotes.reduce((s, [,n]) => s + n.length, 0)})</div>`;
+  let html = `<div class="ns-title">📝 我的笔记 (${allNotes.reduce((s, [,n]) => s + n.length, 0)})</div>`;
   allNotes.forEach(([modId, notes]) => {
     const mod = findModuleById(modId);
+    const modTitle = mod?.title || modId;
     notes.forEach(n => {
-      container.innerHTML += `<div class="ns-item" onclick="loadModule('${modId}')">${mod?.title || modId}: "${n.quote.slice(0, 30)}..."</div>`;
+      const preview = n.quote.slice(0, 25);
+      html += `<div class="ns-item">
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+              onclick="loadModule('${modId}');setTimeout(()=>renderNotesPanel(),200)"
+              title="${modTitle}: ${escapeHTML(n.text)}">${modTitle}: "${escapeHTML(preview)}..."</span>
+        <button class="ns-del" title="删除" onclick="event.stopPropagation();deleteModuleNote('${modId}','${n.id}')">✕</button>
+      </div>`;
     });
   });
+  container.innerHTML = html;
+}
+
+// Sidebar delete helper
+function deleteModuleNote(modId, noteId) {
+  if (!notesStore[modId]) return;
+  notesStore[modId] = notesStore[modId].filter(n => n.id !== noteId);
+  if (notesStore[modId].length === 0) delete notesStore[modId];
+  persistNotes();
+  refreshNotesUI();
+  showToast("🗑 笔记已删除");
 }
 
 // ==================== Keyboard Shortcuts ====================
