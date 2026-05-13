@@ -1,0 +1,342 @@
+<h3>POM 元素库管理</h3>
+<p style="color:var(--text2);margin-bottom:16px;">可视化管理 Page Object 页面与元素定位，数据存储在浏览器本地</p>
+
+<div class="pom-layout" id="pomApp">
+  <div class="pom-sidebar" id="pomSidebar">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <span style="font-weight:700;font-size:0.8rem;">📁 页面列表</span>
+      <button class="step-act-btn" title="添加页面" onclick="POM.showPageModal()" style="font-size:1rem;line-height:1;">＋</button>
+    </div>
+    <div id="pageList"></div>
+    <div style="margin-top:12px;display:flex;flex-direction:column;gap:4px;">
+      <button class="ed-btn" onclick="POM.exportJSON()" style="font-size:0.72rem;">📤 导出 JSON</button>
+      <button class="ed-btn" onclick="document.getElementById('importFile').click()" style="font-size:0.72rem;">📥 导入 JSON</button>
+      <input type="file" id="importFile" accept=".json" onchange="POM.importJSON(event)" style="display:none;">
+    </div>
+  </div>
+
+  <div class="pom-main" id="pomMain">
+    <div style="color:var(--text2);padding:40px 0;text-align:center;" id="pomEmpty">
+      👈 选择一个页面，或创建新页面开始管理元素
+    </div>
+    <div id="pomElements" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <span style="font-weight:700;font-size:0.85rem;">🔍 元素列表 — <span id="pomPageName"></span></span>
+        <div style="display:flex;gap:6px;">
+          <button class="ed-btn primary" onclick="POM.showElementModal()">＋ 添加元素</button>
+          <button class="ed-btn success" onclick="POM.generateCode()">⚡ 生成 POM 代码</button>
+          <button class="ed-btn" onclick="POM.deletePage()" style="color:var(--red);">🗑 删除页面</button>
+        </div>
+      </div>
+      <table class="steps-table">
+        <thead><tr><th>元素名称</th><th>定位策略</th><th>定位值</th><th style="width:60px;"></th></tr></thead>
+        <tbody id="elemTableBody"></tbody>
+      </table>
+      <div id="pomCodePreview" style="display:none;margin-top:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-weight:700;font-size:0.85rem;">📄 生成的 POM 类</span>
+          <button class="ed-btn" onclick="POM.copyCode()">📋 复制</button>
+        </div>
+        <div class="cw"><div class="cbar"><span class="fname" id="pomFname">page_objects.py</span></div><pre><code id="pomGenCode"></code></pre></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Page Modal -->
+<div class="modal-mask" id="pageModal">
+  <div class="modal-box">
+    <h4 id="pageModalTitle">添加页面</h4>
+    <div class="form-row"><label>页面名称</label><input type="text" id="pageNameInput" placeholder="例如：登录页"></div>
+    <div class="form-row"><label>页面 URL</label><input type="text" id="pageUrlInput" placeholder="例如：/login"></div>
+    <div class="modal-acts">
+      <button class="ed-btn" onclick="POM.closePageModal()">取消</button>
+      <button class="ed-btn primary" onclick="POM.savePage()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Element Modal -->
+<div class="modal-mask" id="elemModal">
+  <div class="modal-box">
+    <h4 id="elemModalTitle">添加元素</h4>
+    <div class="form-row"><label>元素名称</label><input type="text" id="elemNameInput" placeholder="例如：username_input"></div>
+    <div class="form-row">
+      <label>定位策略</label>
+      <select id="elemStrategy">
+        <option value="css">CSS Selector</option>
+        <option value="role">Role (get_by_role)</option>
+        <option value="label">Label (get_by_label)</option>
+        <option value="testid">Test ID (get_by_test_id)</option>
+        <option value="text">Text (get_by_text)</option>
+        <option value="xpath">XPath</option>
+      </select>
+    </div>
+    <div class="form-row"><label>定位值</label><input type="text" id="elemValueInput" placeholder="例如：#username"></div>
+    <div class="modal-acts">
+      <button class="ed-btn" onclick="POM.closeElemModal()">取消</button>
+      <button class="ed-btn primary" onclick="POM.saveElement()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var STORAGE_KEY = "pom_library";
+  var data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{"pages":[]}');
+  var currentPageId = null;
+  var editingPageId = null;
+  var editingElemId = null;
+
+  function persist() { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+
+  function findPage(id) { return data.pages.find(function(p) { return p.id === id; }); }
+
+  function renderPages() {
+    var list = document.getElementById("pageList");
+    if (!data.pages.length) {
+      list.innerHTML = '<div style="color:var(--text2);font-size:0.75rem;">暂无页面</div>';
+    } else {
+      list.innerHTML = data.pages.map(function(p) {
+        var cls = p.id === currentPageId ? "pom-page-item active" : "pom-page-item";
+        return '<div class="' + cls + '" onclick="POM.selectPage(\'' + p.id + '\')">' +
+          '<span>' + escHtml(p.name) + '</span>' +
+          '<span style="font-size:0.65rem;color:var(--text2);">' + (p.elements ? p.elements.length : 0) + '</span>' +
+          '</div>';
+      }).join("");
+    }
+  }
+
+  function renderElements() {
+    var page = findPage(currentPageId);
+    if (!page) { document.getElementById("pomEmpty").style.display = ""; document.getElementById("pomElements").style.display = "none"; return; }
+    document.getElementById("pomEmpty").style.display = "none";
+    document.getElementById("pomElements").style.display = "";
+    document.getElementById("pomPageName").textContent = page.name + " (" + (page.url || "/") + ")";
+    var tbody = document.getElementById("elemTableBody");
+    if (!page.elements || !page.elements.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="color:var(--text2);text-align:center;padding:20px;">暂无元素，点击上方"添加元素"</td></tr>';
+    } else {
+      var stratNames = { css: "CSS", role: "Role", label: "Label", testid: "Test ID", text: "Text", xpath: "XPath" };
+      tbody.innerHTML = page.elements.map(function(el) {
+        return '<tr>' +
+          '<td><code style="font-size:0.78rem;">' + escHtml(el.name) + '</code></td>' +
+          '<td><span class="badge b-blue">' + (stratNames[el.strategy] || el.strategy) + '</span></td>' +
+          '<td><code style="font-size:0.76rem;">' + escHtml(el.value) + '</code></td>' +
+          '<td style="white-space:nowrap;">' +
+            '<button class="step-act-btn" title="编辑" onclick="POM.editElement(\'' + el.id + '\')" style="margin-right:2px;">✎</button>' +
+            '<button class="step-act-btn del" title="删除" onclick="POM.deleteElement(\'' + el.id + '\')">✕</button>' +
+          '</td></tr>';
+      }).join("");
+    }
+    document.getElementById("pomCodePreview").style.display = "none";
+  }
+
+  function escHtml(s) { return s.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  function generatePOMCode() {
+    var page = findPage(currentPageId);
+    if (!page) return "";
+    var className = page.name.replace(/[\s\-]+/g, "_").replace(/[^\w]/g, "");
+    if (!className) className = "BasePage";
+    className = className.charAt(0).toUpperCase() + className.slice(1) + "Page";
+    var lines = ["from playwright.sync_api import Page", "", "",
+      "class " + className + ":", '    """Page Object for ' + page.name + '"""', "",
+      "    def __init__(self, page: Page):",
+      "        self.page = page",
+    ];
+    (page.elements || []).forEach(function(el) {
+      var pyName = el.name.replace(/[\s\-]+/g, "_").replace(/[^\w]/g, "");
+      switch (el.strategy) {
+        case "css":
+          lines.push("        self." + pyName + ' = page.locator("' + el.value + '")');
+          break;
+        case "role":
+          lines.push("        self." + pyName + ' = page.get_by_role("' + el.value + '")');
+          break;
+        case "label":
+          lines.push("        self." + pyName + ' = page.get_by_label("' + el.value + '")');
+          break;
+        case "testid":
+          lines.push("        self." + pyName + ' = page.get_by_test_id("' + el.value + '")');
+          break;
+        case "text":
+          lines.push("        self." + pyName + ' = page.get_by_text("' + el.value + '")');
+          break;
+        case "xpath":
+          lines.push("        self." + pyName + ' = page.locator("xpath=' + el.value + '")');
+          break;
+        default:
+          lines.push("        self." + pyName + ' = page.locator("' + el.value + '")');
+      }
+    });
+    if ((page.elements || []).length === 0) lines.push("        pass");
+    lines.push("", "    def navigate(self):", '        self.page.goto("' + (page.url || "/") + '")', '        return self', "");
+    var methods = {
+      fill: '    def fill_{name}(self, text: str):\n        self.{name}.fill(text)\n        return self',
+      click: '    def click_{name}(self):\n        self.{name}.click()\n        return self',
+    };
+    (page.elements || []).forEach(function(el) {
+      var pyName = el.name.replace(/[\s\-]+/g, "_").replace(/[^\w]/g, "");
+      if (el.name.toLowerCase().includes("input") || el.name.toLowerCase().includes("field") || el.name.toLowerCase().includes("box") || el.name.toLowerCase().includes("textarea")) {
+        lines.push(methods.fill.replace(/\{name\}/g, pyName));
+      } else if (el.name.toLowerCase().includes("btn") || el.name.toLowerCase().includes("button") || el.name.toLowerCase().includes("link") || el.name.toLowerCase().includes("submit")) {
+        lines.push(methods.click.replace(/\{name\}/g, pyName));
+      }
+    });
+    return lines.join("\n");
+  }
+
+  window.POM = {
+    // Page CRUD
+    showPageModal: function(editId) {
+      editingPageId = editId || null;
+      document.getElementById("pageModalTitle").textContent = editId ? "编辑页面" : "添加页面";
+      if (editId) {
+        var p = findPage(editId);
+        document.getElementById("pageNameInput").value = p ? p.name : "";
+        document.getElementById("pageUrlInput").value = p ? (p.url || "") : "";
+      } else {
+        document.getElementById("pageNameInput").value = "";
+        document.getElementById("pageUrlInput").value = "";
+      }
+      document.getElementById("pageModal").classList.add("show");
+    },
+    closePageModal: function() { document.getElementById("pageModal").classList.remove("show"); },
+    savePage: function() {
+      var name = document.getElementById("pageNameInput").value.trim();
+      if (!name) return;
+      if (editingPageId) {
+        var p = findPage(editingPageId);
+        if (p) { p.name = name; p.url = document.getElementById("pageUrlInput").value.trim(); }
+      } else {
+        data.pages.push({
+          id: Date.now().toString(36),
+          name: name,
+          url: document.getElementById("pageUrlInput").value.trim(),
+          elements: [],
+        });
+      }
+      persist(); renderPages();
+      if (editingPageId) { currentPageId = editingPageId; renderElements(); }
+      document.getElementById("pageModal").classList.remove("show");
+    },
+    selectPage: function(id) {
+      currentPageId = id;
+      renderPages();
+      renderElements();
+    },
+    deletePage: function() {
+      if (!currentPageId) return;
+      if (!confirm("确定删除页面 \"" + (findPage(currentPageId)?.name || "") + "\" 及其所有元素？")) return;
+      data.pages = data.pages.filter(function(p) { return p.id !== currentPageId; });
+      currentPageId = null;
+      persist(); renderPages(); renderElements();
+      document.getElementById("pomEmpty").style.display = "";
+      document.getElementById("pomElements").style.display = "none";
+    },
+
+    // Element CRUD
+    showElementModal: function(editId) {
+      if (!currentPageId) { alert("请先选择一个页面"); return; }
+      editingElemId = editId || null;
+      document.getElementById("elemModalTitle").textContent = editId ? "编辑元素" : "添加元素";
+      if (editId) {
+        var page = findPage(currentPageId);
+        var el = page ? (page.elements || []).find(function(e) { return e.id === editId; }) : null;
+        document.getElementById("elemNameInput").value = el ? el.name : "";
+        document.getElementById("elemStrategy").value = el ? el.strategy : "css";
+        document.getElementById("elemValueInput").value = el ? el.value : "";
+      } else {
+        document.getElementById("elemNameInput").value = "";
+        document.getElementById("elemStrategy").value = "css";
+        document.getElementById("elemValueInput").value = "";
+      }
+      document.getElementById("elemModal").classList.add("show");
+    },
+    closeElemModal: function() { document.getElementById("elemModal").classList.remove("show"); },
+    saveElement: function() {
+      var name = document.getElementById("elemNameInput").value.trim();
+      var strategy = document.getElementById("elemStrategy").value;
+      var value = document.getElementById("elemValueInput").value.trim();
+      if (!name || !value) return;
+      var page = findPage(currentPageId);
+      if (!page) return;
+      if (!page.elements) page.elements = [];
+      if (editingElemId) {
+        var el = page.elements.find(function(e) { return e.id === editingElemId; });
+        if (el) { el.name = name; el.strategy = strategy; el.value = value; }
+      } else {
+        page.elements.push({ id: Date.now().toString(36), name: name, strategy: strategy, value: value });
+      }
+      persist(); renderElements(); renderPages();
+      document.getElementById("elemModal").classList.remove("show");
+    },
+    editElement: function(id) { POM.showElementModal(id); },
+    deleteElement: function(id) {
+      var page = findPage(currentPageId);
+      if (!page || !page.elements) return;
+      if (!confirm("确定删除此元素？")) return;
+      page.elements = page.elements.filter(function(e) { return e.id !== id; });
+      persist(); renderElements(); renderPages();
+    },
+
+    // Code generation
+    generateCode: function() {
+      var code = generatePOMCode();
+      document.getElementById("pomGenCode").textContent = code;
+      document.getElementById("pomFname").textContent = (findPage(currentPageId)?.name || "page") + ".py";
+      document.getElementById("pomCodePreview").style.display = "";
+      document.getElementById("pomCodePreview").scrollIntoView({ behavior: "smooth" });
+    },
+    copyCode: function() {
+      var code = document.getElementById("pomGenCode").textContent;
+      navigator.clipboard.writeText(code).then(function() {
+        var btn = document.querySelector("#pomCodePreview .ed-btn");
+        var orig = btn.textContent;
+        btn.textContent = "✅ 已复制";
+        setTimeout(function() { btn.textContent = orig; }, 1500);
+      });
+    },
+
+    // Import / Export
+    exportJSON: function() {
+      var json = JSON.stringify(data, null, 2);
+      var blob = new Blob([json], { type: "application/json" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url; a.download = "pom_library.json"; a.click();
+      URL.revokeObjectURL(url);
+    },
+    importJSON: function(e) {
+      var file = e.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        try {
+          var imported = JSON.parse(ev.target.result);
+          if (!imported.pages || !Array.isArray(imported.pages)) throw new Error("格式错误");
+          if (!confirm("导入将覆盖当前库（" + data.pages.length + " 个页面），确定继续？")) return;
+          data = imported;
+          currentPageId = null;
+          persist(); renderPages(); renderElements();
+          document.getElementById("pomEmpty").style.display = "";
+          document.getElementById("pomElements").style.display = "none";
+        } catch(err) {
+          alert("导入失败：" + err.message);
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = "";
+    },
+  };
+
+  // Init
+  renderPages();
+  if (data.pages.length > 0) {
+    currentPageId = data.pages[0].id;
+    renderPages();
+    renderElements();
+  }
+})();
+</script>

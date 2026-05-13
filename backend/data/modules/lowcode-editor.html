@@ -1,0 +1,223 @@
+<h3>在线用例编辑器</h3>
+<p style="color:var(--text2);margin-bottom:16px;">可视化编排测试步骤，一键生成 Playwright Python 代码</p>
+
+<div class="editor-wrap" id="editorApp">
+  <label>用例名称</label>
+  <input type="text" id="testName" placeholder="例如：登录成功测试" value="登录成功测试" style="width:100%;">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 6px;">
+    <label style="margin:0;">📋 测试步骤</label>
+    <div style="display:flex;gap:6px;">
+      <button class="ed-btn" onclick="Editor.addStep()">＋ 添加步骤</button>
+      <select id="presetSelect" onchange="Editor.loadPreset(this.value)" style="padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:0.76rem;">
+        <option value="">📦 预设模板...</option>
+        <option value="login">登录测试</option>
+        <option value="search">搜索测试</option>
+        <option value="form">表单提交</option>
+      </select>
+    </div>
+  </div>
+
+  <table class="steps-table" id="stepsTable">
+    <thead><tr><th style="width:28px;"></th><th style="width:26px;">#</th><th>操作</th><th>选择器</th><th>值 / 文本</th><th style="width:50px;"></th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <div style="display:flex;gap:8px;margin-top:12px;">
+    <button class="ed-btn primary" onclick="Editor.generate()">⚡ 生成代码</button>
+    <button class="ed-btn" onclick="Editor.clearAll()">清空</button>
+  </div>
+
+  <div id="codePreview" style="display:none;margin-top:14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <span style="font-weight:700;font-size:0.85rem;">📄 生成的 Playwright 代码</span>
+      <button class="ed-btn" onclick="Editor.copyCode()">📋 复制</button>
+    </div>
+    <div class="cw"><div class="cbar"><span class="fname">test_generated.py</span></div><pre><code id="genCode"></code></pre></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var steps = [
+    { action: "navigate", selector: "https://example.com/login", value: "" },
+    { action: "fill", selector: "#username", value: "admin" },
+    { action: "fill", selector: "#password", value: "pass123" },
+    { action: "click", selector: "button[type='submit']", value: "" },
+    { action: "assert_visible", selector: ".dashboard", value: "" },
+  ];
+
+  var actions = [
+    { value: "navigate", label: "🌐 打开页面" },
+    { value: "fill", label: "⌨ 输入" },
+    { value: "click", label: "👆 点击" },
+    { value: "dblclick", label: "👆👆 双击" },
+    { value: "select", label: "📋 下拉选择" },
+    { value: "hover", label: "🖱 悬停" },
+    { value: "assert_visible", label: "✅ 断言可见" },
+    { value: "assert_text", label: "✅ 断言文本" },
+    { value: "wait", label: "⏳ 等待(ms)" },
+    { value: "screenshot", label: "📸 截图" },
+  ];
+
+  function actionLabel(v) {
+    var a = actions.find(function(a) { return a.value === v; });
+    return a ? a.label : v;
+  }
+
+  function render() {
+    var tbody = document.querySelector("#stepsTable tbody");
+    var moveBtns = steps.length > 1;
+    tbody.innerHTML = steps.map(function(s, i) {
+      var opts = actions.map(function(a) {
+        return '<option value="' + a.value + '"' + (s.action === a.value ? ' selected' : '') + '>' + a.label + '</option>';
+      }).join("");
+      return '<tr>' +
+        '<td>' + (moveBtns ? '<button class="step-act-btn" title="上移" onclick="Editor.moveUp(' + i + ')">▲</button>' : '') + '</td>' +
+        '<td style="color:var(--text2);">' + (i + 1) + '</td>' +
+        '<td><select onchange="Editor.updateStep(' + i + ', \'action\', this.value)">' + opts + '</select></td>' +
+        '<td><input type="text" value="' + escHtml(s.selector) + '" placeholder="CSS / XPath / URL" onchange="Editor.updateStep(' + i + ', \'selector\', this.value)"></td>' +
+        '<td><input type="text" value="' + escHtml(s.value) + '" placeholder="输入值 / 断言文本" onchange="Editor.updateStep(' + i + ', \'value\', this.value)"></td>' +
+        '<td><button class="step-act-btn del" title="删除" onclick="Editor.removeStep(' + i + ')">✕</button></td>' +
+        '</tr>';
+    }).join("");
+  }
+
+  function escHtml(s) { return s.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  function generateCode() {
+    var name = (document.getElementById("testName").value || "test_case").replace(/\s+/g, "_").toLowerCase();
+    var lines = ['import re', 'from playwright.sync_api import sync_playwright, expect', '',
+      'def test_' + name + '(page):',
+      '    """生成的自动化测试用例"""',
+    ];
+    var hasWait = false;
+    steps.forEach(function(s) {
+      switch (s.action) {
+        case "navigate":
+          lines.push('    page.goto("' + s.selector + '")');
+          break;
+        case "fill":
+          lines.push('    page.fill("' + s.selector + '", "' + s.value + '")');
+          break;
+        case "click":
+          lines.push('    page.click("' + s.selector + '")');
+          break;
+        case "dblclick":
+          lines.push('    page.dblclick("' + s.selector + '")');
+          break;
+        case "select":
+          lines.push('    page.select_option("' + s.selector + '", "' + s.value + '")');
+          break;
+        case "hover":
+          lines.push('    page.hover("' + s.selector + '")');
+          break;
+        case "assert_visible":
+          lines.push('    expect(page.locator("' + s.selector + '")).to_be_visible()');
+          break;
+        case "assert_text":
+          lines.push('    expect(page.locator("' + s.selector + '")).to_contain_text("' + s.value + '")');
+          break;
+        case "wait":
+          lines.push('    page.wait_for_timeout(' + (parseInt(s.selector) || 1000) + ')');
+          hasWait = true;
+          break;
+        case "screenshot":
+          lines.push('    page.screenshot(path="' + (s.selector || "screenshot") + '.png")');
+          break;
+        default:
+          lines.push('    # 未知操作: ' + s.action);
+      }
+    });
+    if (!hasWait) lines.splice(1, 0, '');
+    return lines.join('\n');
+  }
+
+  var presets = {
+    login: {
+      name: "登录成功测试",
+      steps: [
+        { action: "navigate", selector: "https://example.com/login", value: "" },
+        { action: "fill", selector: "#username", value: "admin" },
+        { action: "fill", selector: "#password", value: "pass123" },
+        { action: "click", selector: "button[type='submit']", value: "" },
+        { action: "assert_visible", selector: ".dashboard", value: "" },
+      ]
+    },
+    search: {
+      name: "搜索功能测试",
+      steps: [
+        { action: "navigate", selector: "https://example.com", value: "" },
+        { action: "fill", selector: "input[name='q']", value: "Playwright" },
+        { action: "click", selector: "button[type='submit']", value: "" },
+        { action: "assert_visible", selector: ".search-results", value: "" },
+        { action: "assert_text", selector: ".result-item:first-child", value: "Playwright" },
+      ]
+    },
+    form: {
+      name: "表单提交测试",
+      steps: [
+        { action: "navigate", selector: "https://example.com/contact", value: "" },
+        { action: "fill", selector: "#name", value: "测试用户" },
+        { action: "fill", selector: "#email", value: "test@example.com" },
+        { action: "select", selector: "#topic", value: "技术支持" },
+        { action: "fill", selector: "#message", value: "这是一条测试消息" },
+        { action: "click", selector: "button[type='submit']", value: "" },
+        { action: "assert_visible", selector: ".success-message", value: "" },
+        { action: "screenshot", selector: "form_submitted", value: "" },
+      ]
+    }
+  };
+
+  window.Editor = {
+    addStep: function() {
+      steps.push({ action: "click", selector: "", value: "" });
+      render();
+    },
+    removeStep: function(i) {
+      if (steps.length <= 1) return;
+      steps.splice(i, 1);
+      render();
+    },
+    moveUp: function(i) {
+      if (i === 0) return;
+      var tmp = steps[i]; steps[i] = steps[i - 1]; steps[i - 1] = tmp;
+      render();
+    },
+    updateStep: function(i, field, val) {
+      steps[i][field] = val;
+    },
+    clearAll: function() {
+      steps = [{ action: "navigate", selector: "", value: "" }];
+      document.getElementById("testName").value = "";
+      document.getElementById("codePreview").style.display = "none";
+      render();
+    },
+    generate: function() {
+      var code = generateCode();
+      document.getElementById("genCode").textContent = code;
+      document.getElementById("codePreview").style.display = "";
+      document.getElementById("codePreview").scrollIntoView({ behavior: "smooth" });
+    },
+    copyCode: function() {
+      var code = document.getElementById("genCode").textContent;
+      navigator.clipboard.writeText(code).then(function() {
+        var btn = document.querySelector("#codePreview .ed-btn");
+        var orig = btn.textContent;
+        btn.textContent = "✅ 已复制";
+        setTimeout(function() { btn.textContent = orig; }, 1500);
+      });
+    },
+    loadPreset: function(key) {
+      if (!presets[key]) return;
+      var p = presets[key];
+      steps = p.steps.map(function(s) { return { action: s.action, selector: s.selector, value: s.value }; });
+      document.getElementById("testName").value = p.name;
+      document.getElementById("presetSelect").value = "";
+      render();
+    },
+  };
+
+  render();
+})();
+</script>

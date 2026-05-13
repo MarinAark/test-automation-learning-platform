@@ -431,3 +431,36 @@ def load_all_modules():
             "content_html": _html("ci-allure"),
         },
     ])
+
+    # ================================================================
+    # 第六章：工具平台
+    # ================================================================
+    ModuleData.register("ch6", "工具平台", "🛠️", [
+        {
+            "id": "report-center",
+            "title": "测试报告中心",
+            "description": "测试执行概况、趋势分析、失败原因分布、历史记录",
+            "prerequisites": ["ci-allure"],
+            "leads_to": [],
+            "tags": ["报告", "Dashboard", "Chart.js"],
+            "content_html": _html("report-center"),
+        },
+        {
+            "id": "lowcode-editor",
+            "title": "在线用例编辑器",
+            "description": "可视化编排测试步骤，一键生成 Playwright Python 代码",
+            "prerequisites": ["ui-playwright-core"],
+            "leads_to": ["lowcode-pom"],
+            "tags": ["低代码", "Playwright", "代码生成"],
+            "content_html": _html("lowcode-editor"),
+        },
+        {
+            "id": "lowcode-pom",
+            "title": "POM 元素库管理",
+            "description": "可视化管理 Page Object 页面与元素定位，支持导入导出",
+            "prerequisites": ["ui-pom"],
+            "leads_to": [],
+            "tags": ["POM", "元素库", "localStorage"],
+            "content_html": _html("lowcode-pom"),
+        },
+    ])

@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from backend.config import settings
-from backend.routers import modules, progress
+from backend.routers import modules, progress, reports
 
 app = FastAPI(title=settings.app_name, version=settings.version)
 
@@ -17,6 +17,7 @@ app.add_middleware(
 # API 路由
 app.include_router(modules.router)
 app.include_router(progress.router)
+app.include_router(reports.router)
 
 
 @app.get("/api/health")

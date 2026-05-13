@@ -1,0 +1,123 @@
+<h3>测试报告中心</h3>
+<p style="color:var(--text2);margin-bottom:16px;">测试执行概况与趋势分析（模拟数据演示）</p>
+
+<!-- 统计卡片 -->
+<div class="stat-cards" id="statCards">
+  <div class="stat-card"><div class="sc-num" id="scTotal">--</div><div class="sc-label">总执行次数</div></div>
+  <div class="stat-card sc-green"><div class="sc-num" id="scPass">--</div><div class="sc-label">通过率</div></div>
+  <div class="stat-card sc-red"><div class="sc-num" id="scFail">--</div><div class="sc-label">失败用例</div></div>
+  <div class="stat-card sc-blue"><div class="sc-num" id="scDur">--</div><div class="sc-label">平均耗时</div></div>
+</div>
+
+<!-- 图表区 -->
+<div class="chart-grid">
+  <div class="chart-box">
+    <div class="chart-title">📊 通过率</div>
+    <div class="chart-body"><canvas id="passRateChart"></canvas></div>
+  </div>
+  <div class="chart-box">
+    <div class="chart-title">📈 执行耗时趋势（最近 7 天）</div>
+    <div class="chart-body"><canvas id="trendChart"></canvas></div>
+  </div>
+</div>
+
+<!-- 失败分布 -->
+<div class="chart-box" style="margin-bottom:18px;">
+  <div class="chart-title">⚠️ 失败原因分布</div>
+  <div class="chart-body" id="failureDist"></div>
+</div>
+
+<!-- 历史记录表格 -->
+<div class="chart-box">
+  <div class="chart-title">📋 最近执行历史</div>
+  <div class="tw"><table id="historyTable">
+    <thead><tr><th>时间</th><th>环境</th><th>触发方式</th><th>总数</th><th>通过</th><th>失败</th><th>跳过</th><th>通过率</th><th>耗时</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+</div>
+
+<script>
+(async function() {
+  try {
+    const [ov, fail, hist] = await Promise.all([
+      fetch('/api/reports/overview').then(r => r.json()),
+      fetch('/api/reports/failures').then(r => r.json()),
+      fetch('/api/reports/history?limit=10').then(r => r.json()),
+    ]);
+
+    // Stat cards
+    document.getElementById('scTotal').textContent = ov.total_runs.toLocaleString();
+    document.getElementById('scPass').textContent = ov.pass_rate + '%';
+    document.getElementById('scFail').textContent = ov.failed;
+    document.getElementById('scDur').textContent = ov.avg_duration;
+
+    // Failure distribution — CSS bar chart
+    const maxCount = Math.max(...fail.categories.map(c => c.count));
+    let barsHTML = fail.categories.map(c => `
+      <div class="bar-row">
+        <span class="bar-label">${c.name}</span>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:${(c.count / maxCount * 100).toFixed(0)}%;background:${c.color};"></div>
+        </div>
+        <span class="bar-val">${c.count} (${c.percentage}%)</span>
+      </div>`).join("");
+    document.getElementById('failureDist').innerHTML = barsHTML;
+
+    // History table
+    document.getElementById('historyTable').querySelector('tbody').innerHTML = hist.history.map(h => `
+      <tr>
+        <td>${h.time}</td><td><span class="badge ${h.env === 'production' ? 'b-red' : h.env === 'staging' ? 'b-green' : 'b-blue'}">${h.env}</span></td>
+        <td>${h.trigger}</td><td>${h.total}</td><td style="color:var(--green);">${h.passed}</td>
+        <td style="color:var(--red);">${h.failed}</td><td>${h.skipped}</td>
+        <td><span class="badge ${h.pass_rate >= 95 ? 'b-green' : h.pass_rate >= 85 ? 'b-yellow' : 'b-red'}">${h.pass_rate}%</span></td>
+        <td>${h.duration}</td>
+      </tr>`).join("");
+
+    // Chart.js charts
+    if (typeof Chart !== 'undefined') {
+      const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+      const textColor = isDark ? '#94a3b8' : '#64748b';
+
+      // Donut — pass rate
+      new Chart(document.getElementById('passRateChart'), {
+        type: 'doughnut',
+        data: {
+          labels: ['通过', '失败'],
+          datasets: [{ data: [ov.passed, ov.failed], backgroundColor: ['#10b981', '#ef4444'], borderWidth: 0 }]
+        },
+        options: {
+          responsive: true, cutout: '70%',
+          plugins: {
+            legend: { position: 'bottom', labels: { color: textColor, padding: 16 } },
+            tooltip: { callbacks: { label: ctx => ctx.label + ': ' + ctx.raw + ' (' + (ctx.raw / ov.total_runs * 100).toFixed(1) + '%)' } }
+          }
+        }
+      });
+
+      // Line — trend
+      new Chart(document.getElementById('trendChart'), {
+        type: 'line',
+        data: {
+          labels: ov.trend.map(d => d.date),
+          datasets: [
+            { label: '执行次数', data: ov.trend.map(d => d.runs), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.3, yAxisID: 'y' },
+            { label: '失败数', data: ov.trend.map(d => d.failed), borderColor: '#ef4444', borderDash: [4, 2], tension: 0.3, yAxisID: 'y1' },
+            { label: '平均耗时(s)', data: ov.trend.map(d => d.avg_duration), borderColor: '#f59e0b', tension: 0.3, yAxisID: 'y2' },
+          ]
+        },
+        options: {
+          responsive: true,
+          interaction: { mode: 'index', intersect: false },
+          plugins: { legend: { labels: { color: textColor } } },
+          scales: {
+            y: { type: 'linear', position: 'left', title: { display: true, text: '数量', color: textColor }, ticks: { color: textColor }, grid: { color: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' } },
+            y1: { type: 'linear', position: 'right', title: { display: true, text: '失败', color: textColor }, ticks: { color: textColor }, grid: { drawOnChartArea: false } },
+            y2: { type: 'linear', position: 'right', title: { display: true, text: '秒', color: textColor }, ticks: { color: textColor }, grid: { drawOnChartArea: false } },
+            x: { ticks: { color: textColor }, grid: { color: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' } }
+          }
+        }
+      });
+    }
+  } catch(e) { console.error('Report load error:', e); }
+})();
+</script>
